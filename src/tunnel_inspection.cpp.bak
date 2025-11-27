@@ -1,0 +1,257 @@
+#include "tunnel_inspection.h"
+#include <QFileDialog>
+#include <iostream>
+#include <fstream>
+#include <opencv2/opencv.hpp>
+#include<thread>
+tunnel_inspection::tunnel_inspection(QWidget *parent)
+    : QMainWindow(parent)
+{
+    ui.setupUi(this);
+	ui.oringinal_label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+	ui.oringinal_label->setScaledContents(true);
+	ui.save_pushbutton->hide();
+	// 算法线程初始化
+	alg_thread_.init([this](const result& ret, const cv::Mat& frame) {
+		// cv::cvtColor(frame, frame, CV_BGR2RGB);
+		if (frame.empty()) {
+			ui.progress_bar->setMaximum(ret.bar_value);
+			return;
+		}
+		ui.time_label->setText(QString::number(ret.proc_time));
+		signals_bar(ret.bar_value+2);
+		if (!ui.radio_button->isChecked())return;
+		cv::Mat tframe = frame.clone();
+		QImage qimage = QImage((uchar*)tframe.data, tframe.cols, tframe.rows,
+			tframe.cols * tframe.channels(), QImage::Format_Grayscale8);
+		ui.oringinal_label->setPixmap(QPixmap::fromImage(qimage));
+	
+		
+		//ui.progress_bar->setValue(ret.bar_value);
+
+	});
+
+
+	
+
+    connect(this, &tunnel_inspection::signals_bar, ui.progress_bar, [=](int value) {
+        ui.progress_bar->setValue(value); // 更新进度条的值  
+    });
+}
+
+tunnel_inspection::~tunnel_inspection()
+{}
+void tunnel_inspection::on_load_pushbutton_clicked() {
+    //文件夹路径
+    auto  src_dirpath = QFileDialog::getExistingDirectory(
+        this, "choose src Directory",
+        "/");
+    ui.load_lineedit->setText(src_dirpath);
+
+}
+void tunnel_inspection::on_load_pushbutton_2_clicked() {
+    //文件夹路径
+    auto  src_dirpath = QFileDialog::getExistingDirectory(
+        this, "choose src Directory",
+        "/");
+    ui.load_lineedit_2->setText(src_dirpath);
+
+}
+void tunnel_inspection::on_path_pushbutton_clicked() {
+    //文件夹路径
+    auto  src_dirpath = QFileDialog::getExistingDirectory(
+        this, "choose src Directory",
+        "/");
+    ui.path_lineedit->setText(src_dirpath);
+    for (int i = 1; i <= CAMERANUMBER; ++i) {
+        QString folderName = QString("%1").arg(i);
+        QString fullPath = src_dirpath + "/" + folderName;
+        bool result = QDir().mkpath(fullPath);
+    }
+	if (ui.path_lineedit->text() != nullptr)
+		ui.save_pushbutton->setEnabled(true);
+
+}
+void tunnel_inspection::on_result_path_pushbutton_clicked() {
+    //文件夹路径
+    auto  src_dirpath = QFileDialog::getExistingDirectory(
+        this, "choose src Directory",
+        "/");
+    ui.result_path_lineedit->setText(src_dirpath);
+    for (int i = 1; i <= CAMERANUMBER; ++i) {
+        QString folderName = QString("%1").arg(i);
+        QString fullPath = src_dirpath + "/" + folderName;
+        bool result = QDir().mkpath(fullPath);
+    }
+
+}
+void save_all(tunnel_inspection *ti, std::string files_name1, std::string  files_name2, std::string  store_files_name)
+{
+
+	std::vector<std::string>files_names;
+	std::string dataname = "Camera";
+	for (int i = 0; i < CAMERANUMBER; i++) {
+		if (i < CAMERANUMBER/2) {
+
+			files_names.push_back(files_name1 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
+		}
+		else {
+			files_names.push_back(files_name2 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
+		}
+
+	}
+
+
+
+	for (int i = 0; i < files_names.size(); i++) {
+
+
+
+		std::ifstream is(files_names[i], std::ios::in | std::ios::binary);
+		if (is) {
+			is.seekg(0, is.end);
+			unsigned long long fsize = is.tellg();
+			unsigned int  length = IMGWIDTH * IMGHEIGHT;
+
+			is.seekg(0, is.beg);//从开始移动20个字节//55
+
+			// is.seekg((length*1000)-fsize, is.end);
+
+			unsigned int numbers = fsize / length;
+
+			float bed = float(10) / float(numbers);
+
+			char * buffer = new char[IMGWIDTH * IMGHEIGHT];
+
+			for (int j = 0; j < numbers; j++) {
+				emit ti->signals_bar(i * 10 + bed * j);
+
+				is.read(buffer, length);
+				cv::Mat tempimg(IMGHEIGHT, IMGWIDTH, CV_8UC1, buffer);
+				cv::imwrite(store_files_name + "/" + std::to_string(i + 1) + "/" + std::to_string(j) + ".jpg", tempimg);
+
+			}
+			is.close();
+			delete[] buffer;
+		}
+
+	}
+}
+void tunnel_inspection::on_save_pushbutton_clicked() {
+
+    auto files_name1 = ui.load_lineedit->text().toStdString();
+    auto files_name2 = ui.load_lineedit_2->text().toStdString();
+    auto store_files_name = ui.path_lineedit->text().toStdString();
+
+
+/*
+	ui.progress_bar->setMaximum(80);
+	std::thread ta(save_all, this, files_name1, files_name2, store_files_name);
+	ta.detach();
+	return;
+*/
+
+
+    std::vector<std::string>files_names;
+    std::string dataname = "DalsaCamera5";
+    for (int i = 0; i < CAMERANUMBER; i++) {
+        if (i < 4) {
+
+            files_names.push_back(files_name1 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
+        }
+        else { 
+            files_names.push_back(files_name2 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
+        }
+
+    }
+    ui.progress_bar->setMaximum(80);
+
+
+    for (int i = 0; i < files_names.size(); i++) {
+
+        ui.progress_bar->setValue(i*10);
+
+        std::ifstream is(files_names[i], std::ios::in | std::ios::binary);
+        if (is) {
+            is.seekg(0, is.end);
+            unsigned long long fsize = is.tellg();
+            unsigned int  length = IMGWIDTH * IMGHEIGHT;
+
+            is.seekg(0, is.beg);//从开始移动20个字节//55
+
+            // is.seekg((length*1000)-fsize, is.end);
+
+            unsigned int numbers = fsize / length;
+
+            float bed = float (10) / float(numbers);
+
+            char * buffer = new char[IMGWIDTH * IMGHEIGHT];
+
+            for (int j = 0; j < numbers; j++) {
+                emit signals_bar(i * 10 + bed*j);
+         
+                is.read(buffer, length);
+                cv::Mat tempimg( IMGHEIGHT, IMGWIDTH , CV_8UC1, buffer);
+                cv::imwrite(store_files_name+"/"+std::to_string(i+1)+"/" + std::to_string(j) + ".jpg", tempimg);
+
+            }
+            is.close();
+            delete[] buffer;
+        }
+
+
+
+
+
+    }
+
+
+  
+
+
+
+
+}
+void tunnel_inspection::on_start_pushbutton_clicked() {
+	auto files_name1 = ui.load_lineedit->text().toStdString();
+	auto files_name2 = ui.load_lineedit_2->text().toStdString();
+	auto store_files_name = ui.path_lineedit->text().toStdString();
+	auto  maxbar_value = alg_thread_.set_data_name(files_name1, files_name2, store_files_name);
+	ui.progress_bar->setMaximum(maxbar_value);
+	
+	std::vector<std::string>files_names;
+	for (int i = 0; i < CAMERANUMBER; i++) {
+		if (i < 4) {
+
+			files_names.push_back(files_name1 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
+		}
+		else {
+			files_names.push_back(files_name2 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
+		}
+
+	}
+
+
+	//for (int i = 0; i < CAMERANUMBER; i++) {
+	//	file_datas_[i].init([this](file_data::frame& frame) {
+	//		alg_thread_.push_frame(frame.clone());
+	//	}, files_names[i], i);
+	//	file_datas_[i].start();
+
+	//	file_datas_[i].set_params(store_files_name+"/"+std::to_string(i+1)+"/", ui.save_radio_button->isChecked()&&ui.path_lineedit->text()!=nullptr);
+	//	
+	//}
+	
+	alg_thread_.start();
+
+
+
+
+}
+void tunnel_inspection::on_picture_pushbutton_clicked() {
+
+}
+void tunnel_inspection::update_bar() {
+
+
+}
