@@ -1,7 +1,8 @@
 #ifndef RESULT_H
 #define RESULT_H
 #include<string>
-#define CAMERANUMBER 8
+//#define CAMERANUMBER 8
+#define CAMERANUMBER 6
 #define IMGWIDTH 8192
 #define IMGHEIGHT 8192
 #define NETHEIGHT 640

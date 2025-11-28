@@ -146,6 +146,12 @@ void file_data::run() {
     oss << std::put_time(locNow, "%Y.%m.%d");
     std::string monthday = "_" + oss.str() + "_";
 
+    // 【新增】辅助Lambda：获取当前摄像头的物理分辨率
+    // 逻辑：ID 0(1号)和5(6号)是4k；ID 1-4(2-5号)是16k
+    auto get_real_width = [](int id) -> int {
+        if (id == 0 || id == 5) return 4096;  // 4k相机
+        return 16384;                         // 16k相机
+    };
 
     std::vector<OutputSeg> output;//分割输出
 	while (running_) {
@@ -153,32 +159,55 @@ void file_data::run() {
   //      condvar_.wait(lock);
         last = clock::now();
 		std::ifstream is(file_name_, std::ios::in | std::ios::binary);
+
 		if (is) {
 			is.seekg(0, is.end);
 			unsigned long long fsize = is.tellg();// 文件总字节数
-			unsigned int  length = IMGWIDTH * IMGHEIGHT;// 每帧图像像素数
+			//unsigned int  length = IMGWIDTH * IMGHEIGHT;// 每帧图像像素数
+            // 
+            // 【步骤 A】获取真实宽度，计算单帧字节数
+            int real_w = get_real_width(id_);
+            unsigned int real_len = real_w * IMGHEIGHT;
 
-			//is.seekg(length*200, is.beg);//从开始移动20个字节//
-            is.seekg(changeh_[id_]*8192, is.beg);// 根据参数seekg跳过部分数据
-            //is.seekg(0, is.beg);
-			// is.seekg((length*1000)-fsize, is.end);
+			
+            //is.seekg(changeh_[id_]*8192, is.beg);// 根据参数seekg跳过部分数据
+            // 【步骤 B】SeekG 跳过头部时，必须乘真实宽度
+            // changeh_ 是行数偏移，乘以 real_w 才是字节偏移
+            is.seekg(changeh_[id_] * real_w, is.beg);
 
-			unsigned int numbers = fsize / length;// 计算帧数
+			//unsigned int numbers = fsize / length;// 计算帧数
+            unsigned int numbers = fsize / real_len;
 
-			float bed = float(10) / float(numbers);
+			//float bed = float(10) / float(numbers);
 
-			char * buffer = new char[IMGWIDTH * IMGHEIGHT];//分配内存缓冲区 buffer 用来读取一帧。
+            //分配最大内存
+			char * buffer = new char[16384 * IMGHEIGHT];//分配内存缓冲区 buffer 用来读取一帧。
 
 			for (int j = 0; j < numbers; j++) {
                 last = clock::now();
 
-				is.read(buffer, length);// 从文件中读取一帧
+				is.read(buffer, real_len);// 从文件中读取一帧
+
                 duration_capture2 = clock::now() - last;
                 auto timeuse = std::chrono::duration_cast<std::chrono::milliseconds>(duration_capture2).count();
                 //qDebug() << "i=" << id_ << "==get_data==" << timeuse;
                 last = clock::now();
-                //从二进制文件中读取一帧灰度图像（IMGWIDTH x IMGHEIGHT），并用 OpenCV 封装成 cv::Mat
-				cv::Mat tempimg(IMGHEIGHT, IMGWIDTH, CV_8UC1, buffer);// 灰度图
+
+
+                // 【步骤 D：核心Resize】
+                // 先把 buffer 包装成真实的 Mat (4k 或 16k)
+                cv::Mat raw_img(IMGHEIGHT, real_w, CV_8UC1, buffer);
+                cv::Mat tempimg;
+
+                // 统一缩放到 8192 (IMGWIDTH)
+                if (real_w != IMGWIDTH) {
+                    // 1号/6号(4k)会被拉伸，2-5号(16k)会被压缩
+                    cv::resize(raw_img, tempimg, cv::Size(IMGWIDTH, IMGHEIGHT));
+                }
+                else {
+                    tempimg = raw_img.clone();
+                }
+
 				frame cframe(tempimg, id_, j, j,0);//创建 frame 对象（自定义结构，用于回调传递）。
 				//如果 is_save_ 为真，直接保存帧为 .jpg，然后回调一个空帧。
                 //保存模式

@@ -2,7 +2,7 @@
 #include<QDateTime>
 #include<QDebug>
 #include"img.h"
-#define IMG 0
+
 #pragma execution_character_set("utf-8")
 
 bool alg_thread::readRefPointFromFile(const std::string& filename, RefPoint& refPoint) {
@@ -62,168 +62,21 @@ bool alg_thread::start()
 
 	return true;
 }
-//IMG == 0
-#if IMG
-void alg_thread::run()
-{
-	result ret;
-	std::vector<cv::Mat> iframes;
-	using clock = std::chrono::high_resolution_clock;
-    //int changeh[8] = { 0,0,0,0,100,0,93,167 };
-    //int changew[8] = { 0,0,0,0,0,1383,2822,4261 };//后一个值为前面所有值之和
-    int changeh[8] = { 0,0,0,0,0,0,0,0 };
-    int changew[8] = { 0,0,0,0,0,0,0,0 };//后一个值为前面所有值之和
-    std::vector<int> effective_cw;
-	while (running_)
-	{
-		std::vector<std::string>files_names;
-		std::vector< std::ifstream> ifstreams(8);
-		std::unique_lock<std::mutex> lock(mutex_);
 
-       
-		std::string dataname = "Camera";
-		int effective = 0;
-		unsigned int min_size = 99999999;
-		for (int i = 0; i < 8; i++) {
-			if (i < 4) {
-				auto files_name1 = files_name1_ + "/DalsaCamera" + std::to_string(i + 1) + ".img";
-				ifstreams[i].open(files_name1, std::ios::in | std::ios::binary);
-				
-				if (ifstreams[i].is_open()) {
-					//
-					effective++;
-                    effective_cw.push_back(changew[i]);
-					ifstreams[i].seekg(0, ifstreams[i].end);
-					unsigned long long fsize = ifstreams[i].tellg();
-					unsigned int  length = IMGWIDTH * IMGHEIGHT;
-					ifstreams[i].seekg(changeh[i] * IMGWIDTH, ifstreams[i].beg);
-					unsigned int numbers = fsize / length;
-					if (numbers < min_size)min_size = numbers;
-				}
-
-				files_names.push_back(files_name1_ + "/DalsaCamera" + std::to_string(i + 1) + ".img");
-			}
-			else {
-				auto files_name2 = files_name2_ + "/DalsaCamera" + std::to_string(i + 1) + ".img";
-				ifstreams[i].open(files_name2, std::ios::in | std::ios::binary);
-
-				if (ifstreams[i].is_open()) {
-					//
-					effective++;
-                    effective_cw.push_back(changew[i]);
-					ifstreams[i].seekg(0, ifstreams[i].end);
-					unsigned long long fsize = ifstreams[i].tellg();
-					unsigned int  length = IMGWIDTH * IMGHEIGHT;
-					ifstreams[i].seekg(changeh[i]* IMGWIDTH, ifstreams[i].beg);
-
-					unsigned int numbers = fsize / length;
-					if (numbers < min_size)min_size = numbers;
-				}
-
-				files_names.push_back(files_name2_ + "/DalsaCamera" + std::to_string(i + 1) + ".img");
-			}
-
-		}
-		ret.bar_value = min_size;
-		cv::Mat emptyimge;
-		alg_finished_callback_(ret, emptyimge);
-		if (effective < 1) {
-			condition_.wait(lock);
-			continue;
-		}
-		char * buffer = new char[IMGWIDTH * IMGHEIGHT];
-   
-		for (int i = 0; i < min_size; i++) {
-            auto last = clock::now();
-			unsigned int  length = IMGWIDTH * IMGHEIGHT;
-			ret.bar_value = i+1;
-			
-			std::vector<cv::Mat>images;
-			for (int j = 0; j < ifstreams.size(); j++) {
-				
-				if (ifstreams[j].is_open()) {
-					
-					
-					//ifstreams[j].seekg(i*length, std::ios::beg);
-					ifstreams[j].read(buffer, length);
-			
-					cv::Mat tempimg(IMGHEIGHT, IMGWIDTH, CV_8UC1, buffer);
-                    cv::Mat timg =  tempimg.clone();
-                    cv::cvtColor(timg, timg, cv::COLOR_GRAY2BGR);
-                    std::vector<OutputSeg> output, output2; 
-                    //to do 算法处理
-                    std::vector<cv::Scalar> color;
-                    for (int i = 0; i < 80; i++) {
-                        int b = rand() % 256;
-                        int g = rand() % 256;
-                        int r = rand() % 256;
-                        color.push_back(cv::Scalar(0, 0, 255));
-                    }
-                    
-                    bool find = yvonnx_.OnnxDetect(timg, output);
-                 
-                   /* if (find) {
-                        DrawPred(timg, output, yvonnx_._className, color);
-                        cv::resize(timg, timg, cv::Size(1024, 1024));
-                        cv::imshow("1", timg);
-                        cv::waitKey(100);
-                    }*/
-                    
-
-
-
-					images.push_back(tempimg.clone());
-				}
-				
-			}
-        
-			
-			cv::Mat mergedImage(IMGHEIGHT, effective * IMGWIDTH, CV_8UC1);
-			for (int j = 0; j < images.size(); ++j) {
-				cv::Mat roi(mergedImage, cv::Rect(j * IMGWIDTH- effective_cw[j], 0, IMGWIDTH, IMGHEIGHT));
-				images[j].copyTo(roi);
-			}
-            //cv::Mat roi(mergedImage, cv::Rect(0, 0, effective * IMGWIDTH- effective_cw[effective-1], IMGHEIGHT));
-			cv::resize(mergedImage, mergedImage, cv::Size(2048, 2048));
-
-            auto duration_capture1 = clock::now() - last;
-            auto timeuse = std::chrono::duration_cast<std::chrono::milliseconds>(duration_capture1).count();
-            ret.proc_time = timeuse;
-			
-
-		//	cv::putText(mergedImage, std::to_string(timeuse), cv::Point(200, 200), cv::FONT_HERSHEY_SIMPLEX, 5, cv::Scalar(255, 255, 255), 2, 8);
-			alg_finished_callback_(ret, mergedImage);
-
-
-		}
-		delete[] buffer;
-		for (int j = 0; j < ifstreams.size(); j++) {
-			
-			ifstreams[j].close();
-		}
-		
-
-		running_ = false;
-
-		//alg_finished_callback_(ret, tempimg);
-
-		condition_.wait(lock);
-	}
-
-
-
-}
-
-#else
 void alg_thread::run()
 {
     // 角度和位置修正数组，调整图像拼接时的位置偏移
-    int changeh[8] = { 0,0,0,0,100,0,93,167 };
+    int changeh[6] = { 0,0,0,0,0,0 };
    // 
     //int changew[8] = { 0,1559,1561,1663,1188,1682,1643,1548 };
     // 图像水平方向修正偏移，单位为像素
-    int changew[8] = { 0,1559,3120,4783,5971,7653,9296,10844 };
+    int changew[6] = { 0,0,0,0,0,0 };
     // 缺陷名称对应索引
+
+    // 【新增】参数计算出的“8k分辨率下的有效像素精度” (mm/pixel)
+    // 顺序：1号, 2号, 3号, 4号, 5号, 6号
+    float pixel_accuracy[6] = { 0.14f, 0.42f, 0.49f, 0.49f, 0.42f, 0.14f };
+
     std::vector<std::string> defect = {
         "渗水","渗水","掉块","里程"//,"shield"裂纹、渗水、掉块
     };
@@ -231,12 +84,12 @@ void alg_thread::run()
     // 存放采集的原始图像帧，后续处理用
 	std::vector<cv::Mat> source_frames;
     // 每个摄像头拍摄角度起始点（度数）
-    float angles_start[8] = { 36.21,69.96,103.7,137.45,171.2,204.95,238.7,272.45};//每个相机起始拍摄角度
+    float angles_start[6] = { 36.21, 70.0, 103.0, 137.0, 171.0, 205.0 };//每个相机起始拍摄角度
     float unit_angle = 51.34 / 8192.0;// 每个像素对应的角度值
 
     // 里程相关起始参数
     float mileage_start = 30.9975;//里程起始点
-    float unit_mileage = 8192.0*0.5/1000.0;//每张图片里程长度//南昌地铁0.25\0.314mm每触发一次
+    //float unit_mileage = 8192.0*0.5/1000.0;//每张图片里程长度//南昌地铁0.25\0.314mm每触发一次
     int mileage_direction = -1;// 里程增加方向，-1表示递减
 
     
@@ -322,9 +175,15 @@ void alg_thread::run()
        // cv::Mat mergedImage(1024, 1024, CV_8UC3);
         float area = 0;// 缺陷面积初始化
 
+
+
         // 遍历同一时刻8个摄像头帧进行检测和处理
 		for (int i = 0; i < frames.size(); i++) {
             result ret,crack_ret;// 存储检测结果的结构体
+
+            // 获取当前相机的精度
+            float acc = pixel_accuracy[i];
+
             cv::Mat timg = frames[i].data.clone();// 拷贝当前帧图像
            // cv::resize(timg, timg, cv::Size(NETWIDTH, NETHEIGHT), cv::INTER_LINEAR);
             if(timg.channels()<3)
@@ -350,22 +209,42 @@ void alg_thread::run()
             find = yvonnx_.OnnxDetect(timg, output);
             bool meters_mark = false;
             // 如果是第0号摄像头，额外处理里程标记检测
-            if (frames[i].camera_id==0) {
+            // 如果是第0号摄像头（即1号相机，4k），额外处理里程标记检测
+            if (frames[i].camera_id == 0) {
+                // 【新增】定义纵向(里程)精度
+                // 解释：虽然图像宽度被拉伸了(X轴精度变0.14)，但高度(Y轴)没变，依然是原始扫描线
+                // 根据您提供的规格，1号相机原生精度为 0.28 mm
+                float mileage_acc = 0.28f;
+
+                // 【新增】计算单帧代表的物理长度 (米)
+                // 8192行 * 0.28mm / 1000 = 单帧长度(m)
+                float frame_len_m = 8192.0f * mileage_acc / 1000.0f;
+
                 for (auto mileage : output) {
-                    //如果检测目标是里程标记（ID=3）//frame_number != 249 → 排除特殊帧（可能是坏帧或测试帧）
-                    if (mileage.id == 3&& mileage.confidence>0.9&&mileage.box.width>10&&mileage.box.height>10&& frames[i].frame_number!=249) {
-                        // 根据像素坐标和帧号计算实际里程
-                        auto mileage_mark = mileage_start + (frames[i].frame_number*unit_mileage + float(output[0].box.y)*0.5/1000)*mileage_direction / 1000.0;
+                    // 如果检测目标是里程标记（ID=3）且置信度高
+                    if (mileage.id == 3 && mileage.confidence > 0.9 && mileage.box.width > 10 && mileage.box.height > 10 && frames[i].frame_number != 249) {
+
+                        // 【修改】计算里程公式
+                        // 1. 基础里程偏移: 帧号 * 单帧长度
+                        // 2. 帧内偏移: box.y * 纵向精度 / 1000
+                        float y_offset_m = float(output[0].box.y) * mileage_acc / 1000.0f;
+
+                        // 组合计算 (注意 mileage_direction 是方向 -1 或 1)
+                        // 结果除以 1000.0 是为了配合 mileage_start (如果是KM单位)
+                        auto mileage_mark = mileage_start + (frames[i].frame_number * frame_len_m + y_offset_m) * mileage_direction / 1000.0;
+
+                        // 修正累计误差（逻辑保持原样）
                         auto real_mileage_mark = float(nearestMultipleOf100(mileage_mark * 1000));
-                        mileage_start = mileage_start + (real_mileage_mark/1000.0) - mileage_mark;
+                        mileage_start = mileage_start + (real_mileage_mark / 1000.0) - mileage_mark;
                         meters_mark = true;
-                        qDebug() << "mileage=" << frames[i].frame_number<<":real_mileage_mark="<< real_mileage_mark;
-                        // 保存里程标记图像
-                        cv::imwrite(result_files_name_ + std::to_string(frames[i].camera_id + 1)+"_" + std::to_string(frames[i].frame_number) +"_"+ std::to_string(int(real_mileage_mark)) + "_mileage" + ".jpg", timg(mileage.box));
+
+                        qDebug() << "mileage=" << frames[i].frame_number << ":real_mileage_mark=" << real_mileage_mark;
+
+                        // 保存里程标记图像 (保持原样)
+                        cv::imwrite(result_files_name_ + std::to_string(frames[i].camera_id + 1) + "_" + std::to_string(frames[i].frame_number) + "_" + std::to_string(int(real_mileage_mark)) + "_mileage" + ".jpg", timg(mileage.box));
                         break;
                     }
                 }
-
             }
 
             bool iswrite1 = false;// 是否写渗水、掉块等结果
@@ -378,15 +257,27 @@ void alg_thread::run()
                    // 填充缺陷信息
                    ret.injury_image_name = defect[output[k].id];//ret是结果结构体result
                    iswrite1 = true;
-                   // 计算缺陷面积，单位m²
+
+                   // 【修改】计算缺陷面积
+                    // 原代码: area = area2 * 0.25*0.25/1000000;
+                    // 新逻辑: 像素数 * (精度x * 精度y) / 100万 (转为平方米)
+                    // 假设纵向(行)精度与横向精度近似相同
                    float area2 = cv::countNonZero(output[k].boxMask);
                    
-                   area = area2 * 0.25*0.25/1000000;
+                   area = area2 * acc * acc / 1000000.0f;
                    ret.area = area;
                    // 计算角度，结合摄像头起始角度和像素位置
                    ret.angle = angles_start[frames[i].camera_id] + unit_angle * float(output[0].box.x);
-                   // 计算里程
-                   ret.mileage = mileage_start + (frames[i].frame_number*unit_mileage + float(output[0].box.y)*0.25/1000)*mileage_direction /1000.0;
+                   
+                   // 【修改】计算里程
+                   // 原代码: frames[i].frame_number*unit_mileage + float(output[0].box.y)*0.25/1000
+                   // 新逻辑: 
+                   // 1. 基础里程: 帧号 * 图像高度(8192) * 精度 / 1000 (转为米)
+                   // 2. 框偏移: box.y * 精度 / 1000
+                   float frame_len_m = 8192.0f * acc / 1000.0f; // 单帧代表的物理长度(米)
+                   float defect_y_m = float(output[0].box.y) * acc / 1000.0f;
+
+                   ret.mileage = mileage_start + (frames[i].frame_number * frame_len_m + defect_y_m) * mileage_direction;
                    //qDebug() << frames[i].frame_number << "==" << ret.mileage;
                    ret.order = frames[i].camera_id;
                    ret.confidence = output[k].confidence;
@@ -428,15 +319,19 @@ void alg_thread::run()
                float length = 0.0;
                // 计算裂纹长度和宽度
                img::calculate_crack_dimensions(frames[i].results[m].boxMask, sktimg, length, width);
-               //length = frames[i].results[m].box.width;
-               //width = frames[i].results[m].box.height;
-               crack_ret.length = length * 0.21/1000.0;// mm转m
+               
+               // 【修改】计算裂纹物理长度和宽度
+               // 原代码: crack_ret.length = length * 0.21/1000.0;
+               // 原代码: crack_ret.width = width * 0.021;
+               crack_ret.length = length * acc / 1000.0f; // 像素长度 * 精度 / 1000 => 米
                if (crack_ret.length > 200)// 长度阈值（单位不太确定，可能mm）
                    iswrite_carck = true;
-               crack_ret.width = width * 0.021;
+               crack_ret.width = width * acc;             // 像素宽度 * 精度 => 毫米
                crack_ret.angle = angles_start[frames[i].camera_id] + unit_angle * float(frames[i].results[0].box.x);//起始角度+每个像素所占的角度*裂纹在图像上的x坐标
                //其实里程+
-               crack_ret.mileage = mileage_start + (frames[i].frame_number*unit_mileage + float(frames[i].results[0].box.y)*0.25/1000)*mileage_direction / 1000.0;
+               float frame_len_m = 8192.0f * acc / 1000.0f;
+               float defect_y_m = float(frames[i].results[0].box.y) * acc / 1000.0f;
+               crack_ret.mileage = mileage_start + (frames[i].frame_number * frame_len_m + defect_y_m) * mileage_direction;
                //qDebug() << frames[i].frame_number << "==" << ret.mileage;
                crack_ret.order = frames[i].camera_id;
                crack_ret.confidence = frames[i].results[0].confidence;
@@ -484,10 +379,12 @@ void alg_thread::run()
            }
            // 拼接合成大图，利用changew数组修正水平方向偏移
            //cv::Mat roi(mergedImage, rect) 这样构造出的 roi 是 mergedImage 指定矩形区域的一个“视图”（浅拷贝），对 roi 的修改会直接影响 mergedImage 对应区域。
+           
+           
            cv::Mat roi(mergedImage, cv::Rect(i * IMGWIDTH - changew[i], 0, IMGWIDTH, IMGHEIGHT));//第i个相机拼接到changew[i]位置上
 		  // cv::Mat roi(mergedImage, cv::Rect(i * IMGWIDTH , 0, IMGWIDTH ,  IMGHEIGHT));
            // 最后一幅图特殊均衡化处理，拼接到合成图中
-           if (i == 7) {
+           if (i == 5) {
                cv::Mat gray;
                equalizedImage2 = timg.clone();
                cvtColor(equalizedImage2, gray, cv::COLOR_BGR2GRAY);
@@ -502,7 +399,9 @@ void alg_thread::run()
            
 		}
         // 裁剪合成图有效部分并调整大小，方便后续显示//// 裁剪合成图的有效部分，去除多余宽度（根据changew[7]偏移），高度保持不变
-        cv::Mat mergedImage2(mergedImage, cv::Rect(0, 0, 8 * IMGWIDTH - changew[7], IMGHEIGHT));
+        cv::Mat mergedImage2(mergedImage, cv::Rect(0, 0, 6 * IMGWIDTH - changew[5], IMGHEIGHT));
+        
+        
         // 将裁剪后的图像调整大小为2048x2048，方便后续显示或处理
 		cv::resize(mergedImage2, mergedImage2, cv::Size(2048, 2048));
         // 定义结果结构体变量ret，准备存储当前处理的一些统计数据
@@ -586,39 +485,29 @@ unsigned int alg_thread::set_data_name(std::string files_name1, std::string  fil
 	unsigned int numbers = 0;// 用于存储计算的帧数（假设所有摄像头帧数相同）
 	std::vector< std::ifstream> ifstreams(CAMERANUMBER); // 创建一个大小为CAMERANUMBER的ifstream向量，用于打开所有摄像头对应的文件
     // 遍历所有摄像头索引
+    // 【修改】循环次数改为 CAMERANUMBER (6)
 	for (int i = 0; i < CAMERANUMBER; i++) {
-		if (i < 4) {
-            // 0~3号摄像头的数据文件路径，拼接files_name1_目录下的文件名
-			auto files_name1 = files_name1_ + "/DalsaCamera" + std::to_string(i + 1) + ".img";
-			ifstreams[i].open(files_name1, std::ios::in | std::ios::binary);
+		// 文件名逻辑：0-3在文件夹1，4-5在文件夹2
+        std::string fname;
+        if (i < 3) fname = files_name1_ + "/DalsaCamera" + std::to_string(i + 1) + ".img";
+        else       fname = files_name2_ + "/DalsaCamera" + std::to_string(i + 1) + ".img";
 
-			if (ifstreams[i].is_open()) {
-                // 移动文件指针到文件末尾，获取文件大小
-				ifstreams[i].seekg(0, ifstreams[i].end);
-				unsigned long long fsize = ifstreams[i].tellg();
-                // 计算每帧数据的字节长度（宽*高）
-				unsigned int  length = IMGWIDTH * IMGHEIGHT;
-                // 移动文件指针回到文件开头
-				ifstreams[i].seekg(0, ifstreams[i].beg);
-                // 计算该摄像头文件的总帧数 = 文件大小 / 单帧大小
-				 numbers = fsize / length;
-                 // 该摄像头索引加入有效摄像头列表effectives_
-				effectives_.push_back(i);
-			}
-			
-		}
-		else {
-			auto files_name2 = files_name2_ + "/DalsaCamera" + std::to_string(i + 1) + ".img";
-			ifstreams[i].open(files_name2, std::ios::in | std::ios::binary);
-			if (ifstreams[i].is_open()) {
-				ifstreams[i].seekg(0, ifstreams[i].end);
-				unsigned long long fsize = ifstreams[i].tellg();
-				unsigned int  length = IMGWIDTH * IMGHEIGHT;
-				ifstreams[i].seekg(0, ifstreams[i].beg);
-				numbers = fsize / length;
-				effectives_.push_back(i);
-			}
-		}
+        ifstreams[i].open(fname, std::ios::in | std::ios::binary);
+
+        if (ifstreams[i].is_open()) {
+            ifstreams[i].seekg(0, ifstreams[i].end);
+            unsigned long long fsize = ifstreams[i].tellg();
+            
+            // 【修改】计算真实帧大小
+            int real_w = 16384;
+            if (i == 0 || i == 5) real_w = 4096; // 1号6号是4k
+
+            unsigned int length = real_w * IMGHEIGHT;
+            
+            ifstreams[i].seekg(0, ifstreams[i].beg);
+            numbers = fsize / length;
+            effectives_.push_back(i);
+        }
 
 	}
     // 关闭所有打开的文件流
@@ -635,4 +524,3 @@ alg_thread::~alg_thread()
     
 	stop();
 }
-#endif
