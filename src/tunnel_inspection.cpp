@@ -5,7 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include<thread>
 #include<qtextcodec.h>
-#include <QScreen>
+
 #include<QDebug>
 #include "AppConfig.h"
 #pragma execution_character_set("utf-8")
@@ -263,15 +263,12 @@ tunnel_inspection::tunnel_inspection(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::tunnel_inspectionClass)
 {
     ui->setupUi(this);
+    //初始化界面
     init();
-	
-    camera_id_ = -1;
+
 	// 算法线程初始化，加载模型，设置回调函数
-    //界面显示图像的回调函数
 	alg_thread_.init(
         [this](const result& ret, const cv::Mat& frame) {
-		    // cv::cvtColor(frame, frame, CV_BGR2RGB);
-            //return;//test
 		    if (frame.empty()) {
 			    ui->progress_bar->setMaximum(ret.bar_value);
 			    return;
@@ -280,7 +277,7 @@ tunnel_inspection::tunnel_inspection(QWidget *parent)
 		    ui->time_label->setText(QString::number(ret.proc_time)+"==="+ QString::number(ret.bar_value));
 		    signals_bar(ret.bar_value+2);
 
-		    if (!ui->radio_button->isChecked())return;
+		    //if (!ui->radio_button->isChecked())return;
 
 		    cv::Mat tframe = frame.clone();
             cv::cvtColor(tframe, tframe, CV_BGR2RGB);//QT是RGB格式
@@ -289,21 +286,21 @@ tunnel_inspection::tunnel_inspection(QWidget *parent)
 			    tframe.cols * tframe.channels(), QImage::Format_RGB888);
 		    ui->oringinal_label->setPixmap(QPixmap::fromImage(qimage));//显示图像
 	    });
-    connect(this, &tunnel_inspection::signals_bar, ui->progress_bar, [=](int value) {
-        ui->progress_bar->setValue(value); // 更新进度条的值  
-    });
+    
 }
 
 tunnel_inspection::~tunnel_inspection()
 {
-    
+    delete ui;
 }
 
 void tunnel_inspection::init()
 {
+    //显示图像label
     ui->oringinal_label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
     ui->oringinal_label->setScaledContents(true);
-    ui->save_pushbutton->hide();
+
+    
 
     //设置标题
     this->setWindowTitle("隧道巡检回放系统 v1.0");
@@ -326,6 +323,21 @@ void tunnel_inspection::init()
     ui->lineCameraPath_6->setText(AppConfig::CameraPath_6);
     ui->lineSavePicturePath->setText(AppConfig::SavePicturePath);
     ui->lineSaveResultPath->setText(AppConfig::SaveResultPath);
+    ui->line_mileage->setText(QString::number(AppConfig::Mileage));
+    m_mileage = AppConfig::Mileage;
+
+    //保存原图cbx控件
+    if (ui->lineSavePicturePath->text() != nullptr)
+    {
+        ui->save_radio_button->setEnabled(true);
+    }
+    else
+    {
+        ui->save_radio_button->setEnabled(false);
+    }
+    ui->save_radio_button->setChecked(false);
+    connect(ui->save_radio_button, &QCheckBox::stateChanged,
+        this, &tunnel_inspection::save_raw_picture_ckb);
     
     //链接控件事件到配置保存函数
     connect(ui->lineCameraPath_1, &QLineEdit::textChanged,
@@ -344,11 +356,17 @@ void tunnel_inspection::init()
         this, &tunnel_inspection::saveConfig);
     connect(ui->lineSaveResultPath, &QLineEdit::textChanged,
         this, &tunnel_inspection::saveConfig);
+    connect(ui->line_mileage, &QLineEdit::textChanged,
+        this, &tunnel_inspection::saveConfig);
+
+    //链接进度条事件
+    connect(this, &tunnel_inspection::signals_bar, ui->progress_bar, [=](int value) {
+        ui->progress_bar->setValue(value); // 更新进度条的值  
+        });
 }
 
 void tunnel_inspection::saveConfig()
 {
-    qDebug() << "saveConfig! ";
     AppConfig::CameraPath_1 = ui->lineCameraPath_1->text();
     AppConfig::CameraPath_2 = ui->lineCameraPath_2->text();
     AppConfig::CameraPath_3 = ui->lineCameraPath_3->text();
@@ -357,151 +375,14 @@ void tunnel_inspection::saveConfig()
     AppConfig::CameraPath_6 = ui->lineCameraPath_6->text();
     AppConfig::SavePicturePath = ui->lineSavePicturePath->text();
     AppConfig::SaveResultPath = ui->lineSaveResultPath->text();
+    AppConfig::Mileage = ui->line_mileage->text().toDouble();
 
     AppConfig::writeConfig();
 }
 
-//保存原图路径按键
-void tunnel_inspection::on_btnSavePicturePath_clicked() {
-    //文件夹路径
-    auto  src_dirpath = QFileDialog::getExistingDirectory(
-        this, "choose src Directory",
-        "/");
-    ui->lineSavePicturePath->setText(src_dirpath);
-    for (int i = 1; i <= CAMERANUMBER; ++i) {
-        QString folderName = QString("%1").arg(i);
-        QString fullPath = src_dirpath + "/" + folderName;
-        bool result = QDir().mkpath(fullPath);
-    }
-	if (ui->lineSavePicturePath->text() != nullptr)
-		ui->save_radio_button->setEnabled(true);
-
-}
-
-//保存结果路径
-void tunnel_inspection::on_btnSaveResultPath_clicked() {
-    //文件夹路径
-    auto  src_dirpath = QFileDialog::getExistingDirectory(
-        this, "choose src Directory",
-        "/");
-    ui->lineSaveResultPath->setText(src_dirpath);
-
-}
-
-//没用到的函数
-void save_all(tunnel_inspection *ti, std::string files_name1, std::string  files_name2, std::string  store_files_name)
-{
-
-	std::vector<std::string>files_names;
-	std::string dataname = "Camera";
-	for (int i = 0; i < CAMERANUMBER; i++) {
-		if (i < CAMERANUMBER/2) {
-
-			files_names.push_back(files_name1 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
-		}
-		else {
-			files_names.push_back(files_name2 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
-		}
-
-	}
-
-	for (int i = 0; i < files_names.size(); i++) {
 
 
 
-		std::ifstream is(files_names[i], std::ios::in | std::ios::binary);
-		if (is) {
-			is.seekg(0, is.end);
-			unsigned long long fsize = is.tellg();
-			unsigned int  length = IMGWIDTH * IMGHEIGHT;
-
-			is.seekg(0, is.beg);//从开始移动20个字节//55
-
-			// is.seekg((length*1000)-fsize, is.end);
-
-			unsigned int numbers = fsize / length;
-
-			float bed = float(10) / float(numbers);
-
-			char * buffer = new char[IMGWIDTH * IMGHEIGHT];
-
-			for (int j = 0; j < numbers; j++) {
-				emit ti->signals_bar(i * 10 + bed * j);
-
-				is.read(buffer, length);
-				cv::Mat tempimg(IMGHEIGHT, IMGWIDTH, CV_8UC1, buffer);
-				cv::imwrite(store_files_name + "/" + std::to_string(i + 1) + "/" + std::to_string(j) + ".jpg", tempimg);
-
-			}
-			is.close();
-			delete[] buffer;
-		}
-
-	}
-} 
-
-//开始保存按键
-void tunnel_inspection::on_save_pushbutton_clicked() {
-
-    auto files_name1 = ui->lineCameraPath_1->text().toStdString();
-    auto files_name2 = ui->lineCameraPath_2->text().toStdString();
-    auto store_files_name = ui->lineSavePicturePath->text().toStdString();
-
-/*
-	ui->progress_bar->setMaximum(80);
-	std::thread ta(save_all, this, files_name1, files_name2, store_files_name);
-	ta.detach();
-	return;
-*/ 
-
-    std::vector<std::string>files_names;
-    std::string dataname = "DalsaCamera5";
-    for (int i = 0; i < CAMERANUMBER; i++) {
-        if (i < 4) {
-
-            files_names.push_back(files_name1 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
-        }
-        else { 
-            files_names.push_back(files_name2 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
-        }
-
-    }
-    ui->progress_bar->setMaximum(80);
-
-
-    for (int i = 0; i < files_names.size(); i++) {
-
-        ui->progress_bar->setValue(i*10);
-
-        std::ifstream is(files_names[i], std::ios::in | std::ios::binary);
-        if (is) {
-            is.seekg(0, is.end);
-            unsigned long long fsize = is.tellg();
-            unsigned int  length = IMGWIDTH * IMGHEIGHT;
-
-            is.seekg(0, is.beg);//从开始移动20个字节//55
-
-            // is.seekg((length*1000)-fsize, is.end);
-
-            unsigned int numbers = fsize / length;
-
-            float bed = float (10) / float(numbers);
-
-            char * buffer = new char[IMGWIDTH * IMGHEIGHT];
-
-            for (int j = 0; j < numbers; j++) {
-                emit signals_bar(i * 10 + bed*j);
-         
-                is.read(buffer, length);
-                cv::Mat tempimg( IMGHEIGHT, IMGWIDTH , CV_8UC1, buffer);
-                cv::imwrite(store_files_name+"/"+std::to_string(i+1)+"/" + std::to_string(j) + ".jpg", tempimg);
-
-            }
-            is.close();
-            delete[] buffer;
-        }
-    }
-}
 //start按键进行裂纹检测和渗水掉块
 void tunnel_inspection::on_start_pushbutton_clicked() {
     //初始化摄像头-1
@@ -510,17 +391,21 @@ void tunnel_inspection::on_start_pushbutton_clicked() {
     QTextCodec *code = QTextCodec::codecForName("GB2312");
     // 从界面输入的路径编辑框获取路径，转换为std::string（GB2312编码）
 
+    std::vector<QString> files_name(6);
     //两个读图的line
-    std::string files_name1 = code->fromUnicode(ui->lineCameraPath_1->text()).data();
-    std::string files_name2 = code->fromUnicode(ui->lineCameraPath_2->text()).data();
-    //std::string files_name2 = ui->lineCameraPath_2->text().toStdString(); code->fromUnicode(ui->lineSavePicturePath->text()).data();
-
+    files_name[0] = ui->lineCameraPath_1->text();
+    files_name[1] = ui->lineCameraPath_2->text();
+    files_name[2] = ui->lineCameraPath_3->text();
+    files_name[3] = ui->lineCameraPath_4->text();
+    files_name[4] = ui->lineCameraPath_5->text();
+    files_name[5] = ui->lineCameraPath_6->text();
+   
     //两个保存路径的line
     std::string store_files_name = code->fromUnicode(ui->lineSavePicturePath->text()).data();
     std::string result_files_name = code->fromUnicode(ui->lineSaveResultPath->text()).data();
 
     // 打开并检测每个摄像头数据是否正常，将正确打开的摄像头文件存入有效数组中
-	auto  maxbar_value = alg_thread_.set_data_name(files_name1, files_name2, store_files_name, result_files_name);//拼接摄像头的二进制文件名
+	auto  maxbar_value = alg_thread_.set_data_name(files_name, store_files_name, result_files_name);//拼接摄像头的二进制文件名
     // 设置界面进度条的最大值，进度条范围 [0, maxbar_value]
 	ui->progress_bar->setMaximum(maxbar_value);
 	
@@ -528,15 +413,7 @@ void tunnel_inspection::on_start_pushbutton_clicked() {
 	std::vector<std::string>files_names;
     // 根据摄像头编号，组合对应的文件路径
 	for (int i = 0; i < CAMERANUMBER; i++) {
-		if (i < 3) {
-            // 0~2号摄像头数据来自 files_name1 路径
-			files_names.push_back(files_name1 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
-		}
-		else {
-            // 3号及以上摄像头数据来自 files_name2 路径
-			files_names.push_back(files_name2 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
-		}
-
+        files_names.push_back((files_name[i] + +"/Recv.img").toStdString());
 	}
 
     // 初始化并启动每个摄像头对应的 file_data 实例（负责读取文件和裂纹检测）
@@ -557,7 +434,7 @@ void tunnel_inspection::on_start_pushbutton_clicked() {
         //开始裂纹检测
         qDebug() << "开始裂纹检测";
 		file_datas_[i].start();
-        qDebug() << "裂纹检测结束";
+        
         // 设置文件存储路径、结果路径及是否保存文件的标志
 		file_datas_[i].set_params(store_files_name+"/"+std::to_string(i+1)+"/",// 存储路径（分摄像头子文件夹）
             result_files_name,// 结果保存路径
@@ -568,7 +445,7 @@ void tunnel_inspection::on_start_pushbutton_clicked() {
 	//开始渗水和掉块检测
     qDebug() << "开始渗水掉块检测";
 	alg_thread_.start();
-    qDebug() << "渗水掉块检测结束，开始生成报表";
+    
     // 获取当前系统时间，用于生成带日期的文件名
     auto tNow = std::chrono::system_clock::now();
     auto tmNow = std::chrono::system_clock::to_time_t(tNow);
@@ -587,7 +464,7 @@ void tunnel_inspection::on_start_pushbutton_clicked() {
 
     }
     // 创建Word文档标题，传入第一个文件夹路径作为标题内容
-    create_word_title(files_name1);
+    create_word_title(files_name[0].toStdString());
 
 }
 
@@ -599,54 +476,142 @@ void tunnel_inspection::update_bar() {
 //加载相机1
 void tunnel_inspection::on_btnCameraPath_1_clicked() {
     //文件夹路径
+    QString path = ui->lineCameraPath_1->text();
+    QDir dir(path);
+    if (!dir.exists()) {
+        path = "/";
+    }
+
     auto  src_dirpath = QFileDialog::getExistingDirectory(
-        this, "choose src Directory",
-        "/");
+        this, "选择文件夹",
+        path);
     ui->lineCameraPath_1->setText(src_dirpath);
 
 }
 //加载相机2
 void tunnel_inspection::on_btnCameraPath_2_clicked() {
-    //文件夹路径
+    QString path = ui->lineCameraPath_2->text();
+    QDir dir(path);
+    if (!dir.exists()) {
+        path = "/";
+    }
+
     auto  src_dirpath = QFileDialog::getExistingDirectory(
-        this, "choose src Directory",
-        "/");
+        this, "选择文件夹",
+        path);
     ui->lineCameraPath_2->setText(src_dirpath);
 
 }
 //加载相机3
 void tunnel_inspection::on_btnCameraPath_3_clicked() {
-    //文件夹路径
+    QString path = ui->lineCameraPath_3->text();
+    QDir dir(path);
+    if (!dir.exists()) {
+        path = "/";
+    }
+
     auto  src_dirpath = QFileDialog::getExistingDirectory(
-        this, "choose src Directory",
-        "/");
+        this, "选择文件夹",
+        path);
     ui->lineCameraPath_3->setText(src_dirpath);
 
 }
 //加载相机4
 void tunnel_inspection::on_btnCameraPath_4_clicked() {
-    //文件夹路径
+    QString path = ui->lineCameraPath_4->text();
+    QDir dir(path);
+    if (!dir.exists()) {
+        path = "/";
+    }
+
     auto  src_dirpath = QFileDialog::getExistingDirectory(
-        this, "choose src Directory",
-        "/");
+        this, "选择文件夹",
+        path);
     ui->lineCameraPath_4->setText(src_dirpath);
 
 }
 //加载相机5
 void tunnel_inspection::on_btnCameraPath_5_clicked() {
-    //文件夹路径
+    QString path = ui->lineCameraPath_5->text();
+    QDir dir(path);
+    if (!dir.exists()) {
+        path = "/";
+    }
+
     auto  src_dirpath = QFileDialog::getExistingDirectory(
-        this, "choose src Directory",
-        "/");
+        this, "选择文件夹",
+        path);
     ui->lineCameraPath_5->setText(src_dirpath);
 
 }
 //加载相机6
 void tunnel_inspection::on_btnCameraPath_6_clicked() {
-    //文件夹路径
+    QString path = ui->lineCameraPath_6->text();
+    QDir dir(path);
+    if (!dir.exists()) {
+        path = "/";
+    }
+
     auto  src_dirpath = QFileDialog::getExistingDirectory(
-        this, "choose src Directory",
-        "/");
+        this, "选择文件夹",
+        path);
     ui->lineCameraPath_6->setText(src_dirpath);
+
+}
+
+//保存原图路径按键
+void tunnel_inspection::on_btnSavePicturePath_clicked() {
+    QString path = ui->lineSavePicturePath->text();
+    QDir dir(path);
+    if (!dir.exists()) {
+        path = "/";
+    }
+
+    auto  src_dirpath = QFileDialog::getExistingDirectory(
+        this, "选择文件夹",
+        path);
+    ui->lineSavePicturePath->setText(src_dirpath);
+
+    for (int i = 1; i <= CAMERANUMBER; ++i) {
+        QString folderName = QString("%1").arg(i);
+        QString fullPath = src_dirpath + "/" + folderName;
+        bool result = QDir().mkpath(fullPath);
+    }
+    if (ui->lineSavePicturePath->text() != nullptr)
+    {
+        ui->save_radio_button->setEnabled(true);
+    }
+    else
+    {
+        ui->save_radio_button->setEnabled(false);
+    }
+}
+void tunnel_inspection::save_raw_picture_ckb(int ischecked)
+{
+    qDebug() << "cbx is checked! ";
+    if (ischecked)
+    {
+        QString src_dirpath = ui->lineSavePicturePath->text();
+        for (int i = 1; i <= CAMERANUMBER; ++i) {
+            QString folderName = QString("%1").arg(i);
+            QString fullPath = src_dirpath + "/" + folderName;
+            bool result = QDir().mkpath(fullPath);
+        }
+    }
+    
+}
+
+//保存结果路径
+void tunnel_inspection::on_btnSaveResultPath_clicked() {
+    QString path = ui->lineSaveResultPath->text();
+    QDir dir(path);
+    if (!dir.exists()) {
+        path = "/";
+    }
+
+    auto  src_dirpath = QFileDialog::getExistingDirectory(
+        this, "选择文件夹",
+        path);
+    ui->lineSaveResultPath->setText(src_dirpath);
 
 }

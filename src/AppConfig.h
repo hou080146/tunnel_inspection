@@ -20,6 +20,7 @@ public:
     static QString CameraPath_6;
     static QString SavePicturePath;
     static QString SaveResultPath;
+    static double Mileage;
 
     static void readConfig();
     static void writeConfig();

@@ -462,9 +462,8 @@ void alg_thread::push_frame(const file_data::frame& frame)
     auto timeuse = std::chrono::duration_cast<std::chrono::milliseconds>(duration_capture1).count();
 }
 
-unsigned int alg_thread::set_data_name(std::string files_name1, std::string  files_name2, std::string  store_files_name, std::string result_files_name) {
-    files_name1_ = files_name1;
-    files_name2_ = files_name2;
+unsigned int alg_thread::set_data_name(std::vector<QString> &files_name, std::string  store_files_name, std::string result_files_name) {
+    //std::vector<QString> files_name = files_name;
     store_files_name_ = store_files_name;
     result_files_name_ = result_files_name;
 	unsigned int numbers = 0;// 用于存储计算的帧数（假设所有摄像头帧数相同）
@@ -473,11 +472,11 @@ unsigned int alg_thread::set_data_name(std::string files_name1, std::string  fil
     // 【修改】循环次数改为 CAMERANUMBER (6)
 	for (int i = 0; i < CAMERANUMBER; i++) {
 		// 文件名逻辑：0-3在文件夹1，4-5在文件夹2
-        std::string fname;
-        if (i < 3) fname = files_name1_ + "/DalsaCamera" + std::to_string(i + 1) + ".img";
-        else       fname = files_name2_ + "/DalsaCamera" + std::to_string(i + 1) + ".img";
-
-        ifstreams[i].open(fname, std::ios::in | std::ios::binary);
+        QString fname;
+        //if (i < 3) fname = files_name1_ + "/DalsaCamera" + std::to_string(i + 1) + ".img";
+        //else       fname = files_name2_ + "/DalsaCamera" + std::to_string(i + 1) + ".img";
+        fname = files_name[i] + "/Recv.img";
+        ifstreams[i].open(fname.toStdString(), std::ios::in | std::ios::binary);
 
         if (ifstreams[i].is_open()) {
             ifstreams[i].seekg(0, ifstreams[i].end);

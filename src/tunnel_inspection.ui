@@ -29,7 +29,11 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>隧道巡检</string>
+   <string/>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>logo.PNG</normaloff>logo.PNG</iconset>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -130,70 +134,6 @@ border-radius:0px;</string>
             </layout>
            </widget>
           </item>
-          <item row="0" column="1">
-           <widget class="QWidget" name="widget_2" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_4">
-             <property name="topMargin">
-              <number>3</number>
-             </property>
-             <property name="bottomMargin">
-              <number>3</number>
-             </property>
-             <item>
-              <widget class="QPushButton" name="btnCameraPath_4">
-               <property name="text">
-                <string>相机4路径</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="lineCameraPath_4">
-               <property name="minimumSize">
-                <size>
-                 <width>23</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <property name="text">
-                <string/>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="0" column="2">
-           <widget class="QWidget" name="widget" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_7">
-             <property name="topMargin">
-              <number>3</number>
-             </property>
-             <property name="bottomMargin">
-              <number>3</number>
-             </property>
-             <item>
-              <widget class="QPushButton" name="btnSavePicturePath">
-               <property name="text">
-                <string>保存原图路径</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="lineSavePicturePath">
-               <property name="minimumSize">
-                <size>
-                 <width>23</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <property name="text">
-                <string/>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
           <item row="1" column="0">
            <widget class="QWidget" name="widget" native="true">
             <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -258,9 +198,9 @@ border-radius:0px;</string>
             </layout>
            </widget>
           </item>
-          <item row="1" column="2">
+          <item row="0" column="2">
            <widget class="QWidget" name="widget" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_8">
+            <layout class="QHBoxLayout" name="horizontalLayout_7">
              <property name="topMargin">
               <number>3</number>
              </property>
@@ -268,14 +208,14 @@ border-radius:0px;</string>
               <number>3</number>
              </property>
              <item>
-              <widget class="QPushButton" name="result_path_pushbutton">
+              <widget class="QPushButton" name="btnSavePicturePath">
                <property name="text">
-                <string>保存结果路径</string>
+                <string>保存原图路径</string>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QLineEdit" name="lineSaveResultPath">
+              <widget class="QLineEdit" name="lineSavePicturePath">
                <property name="minimumSize">
                 <size>
                  <width>23</width>
@@ -290,9 +230,9 @@ border-radius:0px;</string>
             </layout>
            </widget>
           </item>
-          <item row="2" column="0">
-           <widget class="QWidget" name="widget" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item row="0" column="1">
+           <widget class="QWidget" name="widget_2" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_4">
              <property name="topMargin">
               <number>3</number>
              </property>
@@ -300,14 +240,46 @@ border-radius:0px;</string>
               <number>3</number>
              </property>
              <item>
-              <widget class="QPushButton" name="btnCameraPath_3">
+              <widget class="QPushButton" name="btnCameraPath_4">
                <property name="text">
-                <string>相机3路径</string>
+                <string>相机4路径</string>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QLineEdit" name="lineCameraPath_3">
+              <widget class="QLineEdit" name="lineCameraPath_4">
+               <property name="minimumSize">
+                <size>
+                 <width>23</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="text">
+                <string/>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="1" column="2">
+           <widget class="QWidget" name="widget" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_8">
+             <property name="topMargin">
+              <number>3</number>
+             </property>
+             <property name="bottomMargin">
+              <number>3</number>
+             </property>
+             <item>
+              <widget class="QPushButton" name="btnSaveResultPath">
+               <property name="text">
+                <string>保存结果路径</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="lineSaveResultPath">
                <property name="minimumSize">
                 <size>
                  <width>23</width>
@@ -354,18 +326,85 @@ border-radius:0px;</string>
             </layout>
            </widget>
           </item>
+          <item row="2" column="0">
+           <widget class="QWidget" name="widget" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_3">
+             <property name="topMargin">
+              <number>3</number>
+             </property>
+             <property name="bottomMargin">
+              <number>3</number>
+             </property>
+             <item>
+              <widget class="QPushButton" name="btnCameraPath_3">
+               <property name="text">
+                <string>相机3路径</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="lineCameraPath_3">
+               <property name="minimumSize">
+                <size>
+                 <width>23</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="text">
+                <string/>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
           <item row="2" column="2">
-           <spacer name="horizontalSpacer">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>264</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
+           <widget class="QWidget" name="widget_6" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_13">
+             <property name="topMargin">
+              <number>3</number>
+             </property>
+             <property name="bottomMargin">
+              <number>3</number>
+             </property>
+             <item>
+              <widget class="QWidget" name="widget" native="true">
+               <layout class="QHBoxLayout" name="horizontalLayout_12">
+                <item>
+                 <widget class="QLabel" name="label">
+                  <property name="text">
+                   <string>初始里程</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="line_mileage">
+                  <property name="maximumSize">
+                   <size>
+                    <width>60</width>
+                    <height>16777215</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>118</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
           </item>
          </layout>
         </widget>
@@ -399,30 +438,14 @@ border-radius:0px;</string>
            <number>0</number>
           </property>
           <item>
-           <widget class="QPushButton" name="save_pushbutton">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string>开始保存</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QRadioButton" name="save_radio_button">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
+           <widget class="QCheckBox" name="save_radio_button">
             <property name="text">
              <string>保存原图</string>
             </property>
-            <property name="autoExclusive">
-             <bool>true</bool>
-            </property>
            </widget>
           </item>
           <item>
-           <widget class="QRadioButton" name="radio_button">
+           <widget class="QCheckBox" name="radio_button">
             <property name="enabled">
              <bool>true</bool>
             </property>

@@ -8,7 +8,7 @@
 
 #include <mutex>
 #include <condition_variable>
-#include"detect.h"
+//#include"detect.h"
 #include"ys_onnx.h"
 #include"ys_utils.h"
 class file_data
@@ -72,7 +72,7 @@ public:
 	void run();
 
 	bool stop();
-	bool read_images(const std::string &path, std::vector<std::string> &image_files);
+
 
 
 	/// 获得相机id
@@ -113,7 +113,10 @@ private:
 	std::string path_;
 	std::mutex mutex_;
 	std::condition_variable condvar_;
-    Yolov8Onnx yd_;//废弃方案
+	std::vector<std::string> _className = {
+		"crack",
+	};
+    //Yolov8Onnx yd_;//废弃方案
 
     ysOnnx yvonnx_;//用于分割，对特定缺陷（例如裂缝）的像素级轮廓做识别。输出掩码（mask），标出哪些像素属于裂缝。后续精确计算：裂缝长度（骨架化），渗水面积（像素统计）
     //int changeh_[8] = { 5500,5400,5355,5344,5379,5317,5349,5282 };

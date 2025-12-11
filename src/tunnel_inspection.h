@@ -29,7 +29,7 @@ public slots:
 
     void on_btnSavePicturePath_clicked();
     void on_btnSaveResultPath_clicked();
-    void on_save_pushbutton_clicked();
+    void save_raw_picture_ckb(int ischecked);
     void on_start_pushbutton_clicked();
     void update_bar();
     void saveConfig();
@@ -39,6 +39,7 @@ private:
     Ui::tunnel_inspectionClass *ui;
 	alg_thread alg_thread_;
 	file_data file_datas_[8];
-    int camera_id_;
+    int camera_id_ = -1;
     QWord word_;
+    double m_mileage;
 };

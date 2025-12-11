@@ -13,6 +13,7 @@
 #include"ys_onnx.h"
 #include"ys_utils.h"
 #include"detect.h"
+#include<QString>
 
 
 /// À„∑®œﬂ≥Ã
@@ -74,7 +75,7 @@ public:
 		return running_;
 	}
 
-	unsigned int set_data_name(std::string files_name1, std::string  files_name2, std::string  store_files_name, std::string  result_files_name);
+	unsigned int set_data_name(std::vector<QString> &files_name, std::string  store_files_name, std::string  result_files_name);
     std::mutex &get_mutex() {
         return mutex_;
     }

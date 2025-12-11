@@ -1,3 +1,4 @@
+#pragma execution_character_set("utf-8")
 #include "file_data.h"
 #include<vector>
 #include<string>
@@ -49,8 +50,6 @@ bool file_data::init(frame_ready_callback frame_ready_callback,
     //这里只进行加载裂纹分割的模型
     yvonnx_.set_className(crack_names);
     auto is_ysonnx_ = yvonnx_.ReadModel("1125.onnx", true, 0, true);
-
-
 	return true;
 }
 
@@ -80,48 +79,7 @@ bool file_data::stop()
 	return true;
 
 }
-bool file_data::read_images(const std::string &path, std::vector<std::string> &image_files)
-{
-	//fn存储path目录下所有文件的路径名称，如../images/0001.png
-	std::vector<cv::String> fn;
-    //cv::glob 把 path（通常是模式，如 "C:\\images\\*.bmp"，也可以是包含通配符的路径）匹配到的文件全路径放到 fn。第三个参数 false 表示不递归子目录。
-	cv::glob(path, fn, false);
-	size_t count_1 = fn.size();
-	if (count_1 == 0)
-	{
 
-		return false;
-	}
-	//v1用来存储只剩数字的字符串
-	std::vector<std::string> v1;
-	for (int i = 0; i < count_1; ++i)
-	{
-		//cout << fn[i] << endl;
-		//1.获取不带路径的文件名,000001.jpg(获取最后一个/后面的字符串）
-		std::string::size_type iPos = fn[i].find_last_of('\\') + 1;//这里只处理反斜杠 '\\'，是按 Windows 路径分隔符来截取的。
-		std::string filename = fn[i].substr(iPos, fn[i].length() - iPos);
-		//cout << filename << endl;
-		//2.取出不带扩展名的“文件名主体”,000001
-		std::string name = filename.substr(0, filename.rfind("."));
-		auto posbm = filename.find("bmp");//posbm 用来判断文件名中是否包含 "bmp"
-		if (posbm > 100)continue;//在 posbm 大于 100 的情况下跳过该文件
-
-		//cout << name << endl;
-		v1.push_back(name);//结果 v1 存的是去掉扩展名后的文件名字符串
-	}
-	//把v1升序排列,按文件名数字值（stoi）升序排序。这里假定文件名都是能 stoi 的纯数字字符串（如 0001、0002）。
-	std::sort(v1.begin(), v1.end(), [](std::string a, std::string b) {return stoi(a) < stoi(b); });
-
-	std::string v = ".bmp";
-	size_t count_2 = v1.size();
-	for (int j = 0; j < count_2; ++j)
-	{
-        //把 path + stem + ".bmp" 拼成完整路径并放到 image_files。
-		std::string z = path + v1[j] + v;
-		image_files.push_back(z);//把完整的图片名写回来
-	}
-	return true;
-}
 /*
 void cv::dnn::NMSBoxes(
     const std::vector<cv::Rect>& bboxes,   // 输入的边界框
@@ -146,39 +104,35 @@ void file_data::run() {
     oss << std::put_time(locNow, "%Y.%m.%d");
     std::string monthday = "_" + oss.str() + "_";
 
-    // 【新增】辅助Lambda：获取当前摄像头的物理分辨率
+    //获取当前摄像头的物理分辨率
     // 逻辑：ID 0(1号)和5(6号)是4k；ID 1-4(2-5号)是16k
     auto get_real_width = [](int id) -> int {
         if (id == 0 || id == 5) return 4096;  // 4k相机
         return 16384;                         // 16k相机
     };
+    std::vector<OutputSeg> output;//定义检测结果
 
-    std::vector<OutputSeg> output;//分割输出
 	while (running_) {
-		//std::unique_lock<std::mutex> lock(mutex_);
-  //      condvar_.wait(lock);
         last = clock::now();
 		std::ifstream is(file_name_, std::ios::in | std::ios::binary);
 
 		if (is) {
 			is.seekg(0, is.end);
 			unsigned long long fsize = is.tellg();// 文件总字节数
-			//unsigned int  length = IMGWIDTH * IMGHEIGHT;// 每帧图像像素数
-            // 
-            // 【步骤 A】获取真实宽度，计算单帧字节数
+
+            //获取真实宽度，计算单帧字节数
             int real_w = get_real_width(id_);
             unsigned int real_len = real_w * IMGHEIGHT;
 
 			
-            //is.seekg(changeh_[id_]*8192, is.beg);// 根据参数seekg跳过部分数据
-            // 【步骤 B】SeekG 跳过头部时，必须乘真实宽度
+            
+            //SeekG 跳过头部时，必须乘真实宽度
             // changeh_ 是行数偏移，乘以 real_w 才是字节偏移
-            is.seekg(changeh_[id_] * real_w, is.beg);
+            is.seekg(changeh_[id_] * real_w, is.beg);//changeh_ = {0} 没有跳过任何数据
 
-			//unsigned int numbers = fsize / length;// 计算帧数
-            unsigned int numbers = fsize / real_len;
+			
+            unsigned int numbers = fsize / real_len;//取整
 
-			//float bed = float(10) / float(numbers);
 
             //分配最大内存
 			char * buffer = new char[16384 * IMGHEIGHT];//分配内存缓冲区 buffer 用来读取一帧。
@@ -194,7 +148,7 @@ void file_data::run() {
                 last = clock::now();
 
 
-                // 【步骤 D：核心Resize】
+                
                 // 先把 buffer 包装成真实的 Mat (4k 或 16k)
                 cv::Mat raw_img(IMGHEIGHT, real_w, CV_8UC1, buffer);
                 cv::Mat tempimg;
@@ -215,18 +169,13 @@ void file_data::run() {
 					cv::imwrite(path_ + std::to_string(id_+1) + monthday +std::to_string(j)+".jpg", tempimg);
 					cv::Mat empty_image;
 					frame eframe(empty_image, id_, j, j,0);
-					frame_ready_callback_(eframe);//帧回调函数对帧进行处理
-
-
+					//frame_ready_callback_(eframe);//帧回调函数对帧进行处理
 				}
                 //否则 检测模式
-				else {
-                   cv::imwrite(path_ + std::to_string(id_ + 1) + monthday + std::to_string(j) + ".jpg", tempimg);//保存原始图片，准备进入分块检测。
-                   std::vector<cv::Scalar> color;
+				{
+                    cv::imwrite(path_ + std::to_string(id_ + 1) + monthday + std::to_string(j) + ".jpg", tempimg);//保存原始图片，准备进入分块检测。
+                    std::vector<cv::Scalar> color;
                     for (int m = 0; m < 5; m++) {
-                        int b = rand() % 256;
-                        int g = rand() % 256;
-                        int r = rand() % 256;
                         color.push_back(cv::Scalar(0, 0, 255));
                     }
 
@@ -292,16 +241,9 @@ void file_data::run() {
                                 auto outputmerge = mergeRectangles(output);
                                 auto cell2 = cell.clone();
                                 //yoloV8检测的class_name
-                                DrawPred_seg(cell, outputmerge, yd_._className, color);
+                                DrawPred_seg(cell, outputmerge, _className, color);
                                 //DrawPred(cell2, output, yd_._className, color);
                                 cv::resize(cell, cell, cv::Size(1024, 1024));
-
-
-
-                               
-                                //cv::imwrite("I:/result/" + std::to_string(id_ + 1) + monthday + std::to_string(j) + "part_" + std::to_string(m) + "_" + std::to_string(n) + "_result2" + ".jpg", cell2);
-                               //cv::imwrite("I:/result/" + std::to_string(id_ + 1) + monthday + std::to_string(j) + "part_" + std::to_string(m) + "_" + std::to_string(n) + "_result" + ".jpg", cell);
-                                //cv::imwrite("I:/result/" + std::to_string(id_ + 1) + monthday + std::to_string(j) + "part_" + std::to_string(m) + "_" + std::to_string(n)  + ".jpg", tempimg(roi));
                             }
                         }
                     }
@@ -342,7 +284,7 @@ void file_data::run() {
                         cv::Mat result_img = tempimg.clone();
                         cv::cvtColor(result_img, result_img, cv::COLOR_GRAY2BGR);
                         //合并检测框，绘制分割结果（DrawPred_seg）。这里用的是yolov8的class_name
-                        DrawPred_seg(result_img, output2, yd_._className, color);
+                        DrawPred_seg(result_img, output2, _className, color);
 
                         std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 75 };
                         //缩放结果图到 1024×1024
@@ -374,25 +316,6 @@ void file_data::run() {
 
 	}
 	return;
-
-    //#if 0:
-	auto path = file_name_;// +"/" + std::to_string(id()) + "/";
-	std::vector<std::string>file_names;
-	read_images(path, file_names);
-
-	int i = 0;
-	int index = 0;
-	int list_size = file_names.size();
-	while (i< list_size) {
-		std::unique_lock<std::mutex> lock(mutex_);
-		condvar_.wait_for(lock, std::chrono::milliseconds(20));
-
-		cv::Mat img = cv::imread(file_names[i], 0);
-		frame cframe(img,  id_, i, i,0);
-		frame_ready_callback_(cframe);
-		i++;
-	
-	}
 }
 
 
