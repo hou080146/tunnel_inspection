@@ -15,19 +15,28 @@ public:
     tunnel_inspection(QWidget *parent = nullptr);
     ~tunnel_inspection();
     void create_word_title(std::string files_name);
+private:
+    void init();
+    
 public slots:
-    void on_load_pushbutton_clicked();
-    void on_load_pushbutton_2_clicked(); 
-    void on_path_pushbutton_clicked();
-    void on_result_path_pushbutton_clicked();
+    //加载文件路径
+    void on_btnCameraPath_1_clicked();
+    void on_btnCameraPath_2_clicked();
+    void on_btnCameraPath_3_clicked();
+    void on_btnCameraPath_4_clicked();
+    void on_btnCameraPath_5_clicked();
+    void on_btnCameraPath_6_clicked();
+
+    void on_btnSavePicturePath_clicked();
+    void on_btnSaveResultPath_clicked();
     void on_save_pushbutton_clicked();
     void on_start_pushbutton_clicked();
-    void on_picture_pushbutton_clicked();
     void update_bar();
+    void saveConfig();
 signals:
     void signals_bar(int value);
 private:
-    Ui::tunnel_inspectionClass ui;
+    Ui::tunnel_inspectionClass *ui;
 	alg_thread alg_thread_;
 	file_data file_datas_[8];
     int camera_id_;

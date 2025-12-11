@@ -73,9 +73,14 @@ void alg_thread::run()
     int changew[6] = { 0,0,0,0,0,0 };
     // 缺陷名称对应索引
 
-    // 【新增】参数计算出的“8k分辨率下的有效像素精度” (mm/pixel)
-    // 顺序：1号, 2号, 3号, 4号, 5号, 6号
-    float pixel_accuracy[6] = { 0.14f, 0.42f, 0.49f, 0.49f, 0.42f, 0.14f };
+    // 【修正 1】X轴精度 (经过Resize后的有效精度, mm/pixel)
+    // 1,6号(4k->8k): 0.28/2 = 0.14
+    // 2-5号(16k->8k): 0.21*2 = 0.42 (假设2,5号是50mm镜头), 0.245*2 = 0.49 (3,4号是40mm镜头)
+    float x_pixel_accuracy[6] = { 0.14f, 0.42f, 0.49f, 0.49f, 0.42f, 0.14f };
+
+    // 【新增 2】Y轴精度 (原生扫描行精度, mm/pixel) - 这是一个关键的新增数组
+    // Y轴高度始终是8192，没有缩放，所以必须用原生精度
+    float y_pixel_accuracy[6] = { 0.28f, 0.21f, 0.245f, 0.245f, 0.21f, 0.28f };
 
     std::vector<std::string> defect = {
         "渗水","渗水","掉块","里程"//,"shield"裂纹、渗水、掉块
@@ -181,8 +186,11 @@ void alg_thread::run()
 		for (int i = 0; i < frames.size(); i++) {
             result ret,crack_ret;// 存储检测结果的结构体
 
-            // 获取当前相机的精度
-            float acc = pixel_accuracy[i];
+            // 【核心修正】分别获取 X轴 和 Y轴 的精度
+            float acc_x = x_pixel_accuracy[i]; // 宽被拉伸/压缩后的精度
+            float acc_y = y_pixel_accuracy[i]; // 高未变，原生精度
+            // 【新增】计算单帧代表的物理长度 (米) = 8192行 * Y轴精度 / 1000
+            float frame_len_m = 8192.0f * acc_y / 1000.0f;
 
             cv::Mat timg = frames[i].data.clone();// 拷贝当前帧图像
            // cv::resize(timg, timg, cv::Size(NETWIDTH, NETHEIGHT), cv::INTER_LINEAR);
@@ -194,9 +202,6 @@ void alg_thread::run()
             // 生成颜色列表，用于绘制结果（此处固定红色），绘制裂纹的颜色
             std::vector<cv::Scalar> color;
             for (int m = 0; m < 80; m++) {
-                int b = rand() % 256;
-                int g = rand() % 256;
-                int r = rand() % 256;
                 color.push_back(cv::Scalar(0, 0, 255));// 红色
             }
 
@@ -205,42 +210,26 @@ void alg_thread::run()
             crack_ret.length = 0.0;
             bool find = false;
 
-            // 使用ONNX模型进行检测，返回是否找到缺陷
+            // 渗水掉块检测模型
             find = yvonnx_.OnnxDetect(timg, output);
             bool meters_mark = false;
+
             // 如果是第0号摄像头，额外处理里程标记检测
             // 如果是第0号摄像头（即1号相机，4k），额外处理里程标记检测
             if (frames[i].camera_id == 0) {
-                // 【新增】定义纵向(里程)精度
-                // 解释：虽然图像宽度被拉伸了(X轴精度变0.14)，但高度(Y轴)没变，依然是原始扫描线
-                // 根据您提供的规格，1号相机原生精度为 0.28 mm
-                float mileage_acc = 0.28f;
-
-                // 【新增】计算单帧代表的物理长度 (米)
-                // 8192行 * 0.28mm / 1000 = 单帧长度(m)
-                float frame_len_m = 8192.0f * mileage_acc / 1000.0f;
-
+                // ID=0 的 acc_y 已经是 0.28 了，可以直接用
                 for (auto mileage : output) {
-                    // 如果检测目标是里程标记（ID=3）且置信度高
                     if (mileage.id == 3 && mileage.confidence > 0.9 && mileage.box.width > 10 && mileage.box.height > 10 && frames[i].frame_number != 249) {
 
-                        // 【修改】计算里程公式
-                        // 1. 基础里程偏移: 帧号 * 单帧长度
-                        // 2. 帧内偏移: box.y * 纵向精度 / 1000
-                        float y_offset_m = float(output[0].box.y) * mileage_acc / 1000.0f;
-
-                        // 组合计算 (注意 mileage_direction 是方向 -1 或 1)
-                        // 结果除以 1000.0 是为了配合 mileage_start (如果是KM单位)
+                        // 【修正】使用 frame_len_m 和 acc_y 计算
+                        float y_offset_m = float(output[0].box.y) * acc_y / 1000.0f;
                         auto mileage_mark = mileage_start + (frames[i].frame_number * frame_len_m + y_offset_m) * mileage_direction / 1000.0;
 
-                        // 修正累计误差（逻辑保持原样）
                         auto real_mileage_mark = float(nearestMultipleOf100(mileage_mark * 1000));
                         mileage_start = mileage_start + (real_mileage_mark / 1000.0) - mileage_mark;
                         meters_mark = true;
-
                         qDebug() << "mileage=" << frames[i].frame_number << ":real_mileage_mark=" << real_mileage_mark;
 
-                        // 保存里程标记图像 (保持原样)
                         cv::imwrite(result_files_name_ + std::to_string(frames[i].camera_id + 1) + "_" + std::to_string(frames[i].frame_number) + "_" + std::to_string(int(real_mileage_mark)) + "_mileage" + ".jpg", timg(mileage.box));
                         break;
                     }
@@ -264,7 +253,7 @@ void alg_thread::run()
                     // 假设纵向(行)精度与横向精度近似相同
                    float area2 = cv::countNonZero(output[k].boxMask);
                    
-                   area = area2 * acc * acc / 1000000.0f;
+                   area = area2 * acc_x * acc_y / 1000000.0f;
                    ret.area = area;
                    // 计算角度，结合摄像头起始角度和像素位置
                    ret.angle = angles_start[frames[i].camera_id] + unit_angle * float(output[0].box.x);
@@ -274,10 +263,12 @@ void alg_thread::run()
                    // 新逻辑: 
                    // 1. 基础里程: 帧号 * 图像高度(8192) * 精度 / 1000 (转为米)
                    // 2. 框偏移: box.y * 精度 / 1000
-                   float frame_len_m = 8192.0f * acc / 1000.0f; // 单帧代表的物理长度(米)
-                   float defect_y_m = float(output[0].box.y) * acc / 1000.0f;
+                   //float frame_len_m = 8192.0f * acc_y / 1000.0f; // 单帧代表的物理长度(米)
+                   float y_offset_m = float(output[0].box.y) * acc_y / 1000.0f;
+                   float total_dist_m = frames[i].frame_number * frame_len_m + y_offset_m;
 
-                   ret.mileage = mileage_start + (frames[i].frame_number * frame_len_m + defect_y_m) * mileage_direction;
+                   // 修正后的公式
+                   ret.mileage = mileage_start + (total_dist_m * mileage_direction) / 1000.0f;
                    //qDebug() << frames[i].frame_number << "==" << ret.mileage;
                    ret.order = frames[i].camera_id;
                    ret.confidence = output[k].confidence;
@@ -289,21 +280,11 @@ void alg_thread::run()
 
 
                }
-
-   
-
-       
-                 //qDebug() << "area1==" << area;
-               
-                 //cv::resize(timg, timg, cv::Size(1024, 1024));
-                 //cv::imwrite("H:/tunnel_test/" + std::to_string(frames[i].camera_id+1) + "_0306_0.5_" + std::to_string(frames[i].frame_number) + "_result" + ".jpg", timg);
-                 //cv::imwrite("H:/tunnel_test/" + std::to_string(frames[i].camera_id +1) + "_0306_0.5_" + std::to_string(frames[i].frame_number)  + ".jpg", frames[i].data);
-                //cv::imshow("1", timg);
-                // cv::waitKey(100);
            }
        
 
            // 处理裂纹检测结果，裂纹检测一般会有多个结果
+           //这里裂纹检测已经结束，结果保存在alg_thread中
            for (int m = 0; m < frames[i].results.size(); m++) {
                /*if (frames[i].results[m].confidence < 0.8)
                   continue;*/
@@ -321,17 +302,21 @@ void alg_thread::run()
                img::calculate_crack_dimensions(frames[i].results[m].boxMask, sktimg, length, width);
                
                // 【修改】计算裂纹物理长度和宽度
+               // // 【修正】裂纹长度使用混合精度估算 (这里略微复杂，简单起见用X精度，更严谨应该根据裂纹走向积分)
+               // 但由于裂纹大多是横向的，且为了代码简洁，这里可以使用 acc_x，或者使用 sqrt(acc_x*acc_y)
+               // 修正里程计算必须用 Y精
                // 原代码: crack_ret.length = length * 0.21/1000.0;
                // 原代码: crack_ret.width = width * 0.021;
-               crack_ret.length = length * acc / 1000.0f; // 像素长度 * 精度 / 1000 => 米
+               crack_ret.length = length * acc_x / 1000.0f; // 像素长度 * 精度 / 1000 => 米
                if (crack_ret.length > 200)// 长度阈值（单位不太确定，可能mm）
                    iswrite_carck = true;
-               crack_ret.width = width * acc;             // 像素宽度 * 精度 => 毫米
+               crack_ret.width = width * acc_x;             // 像素宽度 * 精度 => 毫米
                crack_ret.angle = angles_start[frames[i].camera_id] + unit_angle * float(frames[i].results[0].box.x);//起始角度+每个像素所占的角度*裂纹在图像上的x坐标
-               //其实里程+
-               float frame_len_m = 8192.0f * acc / 1000.0f;
-               float defect_y_m = float(frames[i].results[0].box.y) * acc / 1000.0f;
-               crack_ret.mileage = mileage_start + (frames[i].frame_number * frame_len_m + defect_y_m) * mileage_direction;
+               // 【修正】里程计算使用 Y轴精度
+               //float frame_len_m = 8192.0f * acc_y / 1000.0f;
+               float defect_y_m = float(frames[i].results[0].box.y) * acc_y / 1000.0f;
+               float total_dist_m = frames[i].frame_number * frame_len_m + defect_y_m;
+               crack_ret.mileage = mileage_start + (total_dist_m * mileage_direction) / 1000.0f;
                //qDebug() << frames[i].frame_number << "==" << ret.mileage;
                crack_ret.order = frames[i].camera_id;
                crack_ret.confidence = frames[i].results[0].confidence;
@@ -506,6 +491,7 @@ unsigned int alg_thread::set_data_name(std::string files_name1, std::string  fil
             
             ifstreams[i].seekg(0, ifstreams[i].beg);
             numbers = fsize / length;
+            qDebug() << "第" << i << "个相机，有" << numbers << "张图像";
             effectives_.push_back(i);
         }
 

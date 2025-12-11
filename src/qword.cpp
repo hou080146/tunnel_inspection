@@ -67,6 +67,7 @@ bool QWord::createWord(QString reportname)		//创建一个新的word
 		m_documents = m_word->querySubObject("Documents");  // 获取所有的工作文档
 		m_documents->dynamicCall("Add (void)"); // 新建一个文档页
 		m_document = m_word->querySubObject("ActiveDocument");//获取当前激活的文档 	
+		qDebug() << "wrod文档创建成功";
 		return true;
 	}
 	else

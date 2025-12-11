@@ -26,8 +26,7 @@ public:
 		frame() = default;
 		frame(const cv::Mat& _data, int _camera_id, long long _sample_time, long long _frame_number,long mileage):
 			data(_data), camera_id(_camera_id), sample_time(_sample_time), frame_number(_frame_number) , results() {}
-        //frame(const cv::Mat& _data, const std::vector<crack_result>& _crackresults,int _camera_id, long long _sample_time, long long _frame_number) :
-        //    data(_data), camera_id(_camera_id), sample_time(_sample_time), frame_number(_frame_number), results(_crackresults){}
+        
 
 		frame clone() const {
 			frame ret;

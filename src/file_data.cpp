@@ -250,14 +250,8 @@ void file_data::run() {
                     std::vector<cv::Rect> boxes;
                     std::vector<int> nms_result;
                     std::vector<cv::Mat> masks;
-                    //if ( id_ == 6) {
-                        //qDebug() << "id_=6" << id_ << "==j==" << j<<"=numbers=" <<numbers;
-                        //cv::imwrite("H:/tunnel_test/" + std::to_string(id_ + 1) + monthday + std::to_string(j)  + ".jpg", tempimg);
 
-                        //cv::imshow("2", cell);
-                        //cv::waitKey();
 
-                    //}
                     std::vector<crack_result> crack_results;
                     // 遍历网格并保存每一份  
                     for (int m = 0; m < gridSize; ++m) {
@@ -291,13 +285,6 @@ void file_data::run() {
                                     auto skimg = img::skeletonize(output[k].boxMask);
                                     float length, width;
                                     img::calculate_crack_dimensions(output[k].boxMask,skimg,length,width);
-                                    //qDebug() << "length=" << length << "==width==" << width;
-                        /*            cv::imshow("1", cell);
-                                    cv::imshow("2", skimg);
-                                    cv::waitKey();*/
-
-
-
 
                                 }
                           

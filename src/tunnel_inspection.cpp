@@ -5,7 +5,9 @@
 #include <opencv2/opencv.hpp>
 #include<thread>
 #include<qtextcodec.h>
+#include <QScreen>
 #include<QDebug>
+#include "AppConfig.h"
 #pragma execution_character_set("utf-8")
 void tunnel_inspection::create_word_title(std::string files_name) 
 {/*
@@ -33,7 +35,7 @@ void tunnel_inspection::create_word_title(std::string files_name)
 
     // 获取结果文件夹路径（GB2312编码转码）
     QTextCodec *code = QTextCodec::codecForName("GB2312");
-    std::string result_files_name = code->fromUnicode(ui.result_path_lineedit->text()).data();
+    std::string result_files_name = code->fromUnicode(ui->lineSaveResultPath->text()).data();
 
     using clock = std::chrono::high_resolution_clock;
     clock::time_point now, last;
@@ -50,7 +52,7 @@ void tunnel_inspection::create_word_title(std::string files_name)
 
     auto  qcsvname = QString::fromStdString(csvname);
 
-
+    qDebug() << "csv名称: " << qcsvname;
 
 
 
@@ -258,12 +260,11 @@ void tunnel_inspection::create_word_title(std::string files_name)
 
 }
 tunnel_inspection::tunnel_inspection(QWidget *parent)
-    : QMainWindow(parent)
+    : QMainWindow(parent), ui(new Ui::tunnel_inspectionClass)
 {
-    ui.setupUi(this);
-	ui.oringinal_label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
-	ui.oringinal_label->setScaledContents(true);
-	ui.save_pushbutton->hide();
+    ui->setupUi(this);
+    init();
+	
     camera_id_ = -1;
 	// 算法线程初始化，加载模型，设置回调函数
     //界面显示图像的回调函数
@@ -272,25 +273,24 @@ tunnel_inspection::tunnel_inspection(QWidget *parent)
 		    // cv::cvtColor(frame, frame, CV_BGR2RGB);
             //return;//test
 		    if (frame.empty()) {
-			    ui.progress_bar->setMaximum(ret.bar_value);
+			    ui->progress_bar->setMaximum(ret.bar_value);
 			    return;
 		    }
             //显示处理耗时（毫秒）和当前进度值到time_label和signals_bar。
-		    ui.time_label->setText(QString::number(ret.proc_time)+"==="+ QString::number(ret.bar_value));
+		    ui->time_label->setText(QString::number(ret.proc_time)+"==="+ QString::number(ret.bar_value));
 		    signals_bar(ret.bar_value+2);
 
-		    if (!ui.radio_button->isChecked())return;
+		    if (!ui->radio_button->isChecked())return;
 
 		    cv::Mat tframe = frame.clone();
             cv::cvtColor(tframe, tframe, CV_BGR2RGB);//QT是RGB格式
             //将 OpenCV 图像转换为 Qt 可显示的 QImage
 		    QImage qimage = QImage((uchar*)tframe.data, tframe.cols, tframe.rows,
 			    tframe.cols * tframe.channels(), QImage::Format_RGB888);
-		    ui.oringinal_label->setPixmap(QPixmap::fromImage(qimage));//显示图像
-		//ui.progress_bar->setValue(ret.bar_value);
+		    ui->oringinal_label->setPixmap(QPixmap::fromImage(qimage));//显示图像
 	    });
-    connect(this, &tunnel_inspection::signals_bar, ui.progress_bar, [=](int value) {
-        ui.progress_bar->setValue(value); // 更新进度条的值  
+    connect(this, &tunnel_inspection::signals_bar, ui->progress_bar, [=](int value) {
+        ui->progress_bar->setValue(value); // 更新进度条的值  
     });
 }
 
@@ -298,54 +298,93 @@ tunnel_inspection::~tunnel_inspection()
 {
     
 }
-//加载图像文件夹1
-void tunnel_inspection::on_load_pushbutton_clicked() {
-    //文件夹路径
-    auto  src_dirpath = QFileDialog::getExistingDirectory(
-        this, "choose src Directory",
-        "/");
-    ui.load_lineedit->setText(src_dirpath);
 
+void tunnel_inspection::init()
+{
+    ui->oringinal_label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    ui->oringinal_label->setScaledContents(true);
+    ui->save_pushbutton->hide();
+
+    //设置标题
+    this->setWindowTitle("隧道巡检回放系统 v1.0");
+    this->setWindowIcon(QIcon(":/mainwindow/logo.PNG"));
+
+    //加载qss
+    QFile file("Ubuntu.qss");    // 如果 exe 同目录
+    if (file.open(QFile::ReadOnly)) {
+        QString style = QLatin1String(file.readAll());
+        qApp->setStyleSheet(style);
+    }
+
+    //加载配置
+    //qDebug() << "CameraPath_1: " << AppConfig::CameraPath_1;
+    ui->lineCameraPath_1->setText(AppConfig::CameraPath_1);
+    ui->lineCameraPath_2->setText(AppConfig::CameraPath_2);
+    ui->lineCameraPath_3->setText(AppConfig::CameraPath_3);
+    ui->lineCameraPath_4->setText(AppConfig::CameraPath_4);
+    ui->lineCameraPath_5->setText(AppConfig::CameraPath_5);
+    ui->lineCameraPath_6->setText(AppConfig::CameraPath_6);
+    ui->lineSavePicturePath->setText(AppConfig::SavePicturePath);
+    ui->lineSaveResultPath->setText(AppConfig::SaveResultPath);
+    
+    //链接控件事件到配置保存函数
+    connect(ui->lineCameraPath_1, &QLineEdit::textChanged,
+        this, &tunnel_inspection::saveConfig);
+    connect(ui->lineCameraPath_2, &QLineEdit::textChanged,
+        this, &tunnel_inspection::saveConfig);
+    connect(ui->lineCameraPath_3, &QLineEdit::textChanged,
+        this, &tunnel_inspection::saveConfig);
+    connect(ui->lineCameraPath_4, &QLineEdit::textChanged,
+        this, &tunnel_inspection::saveConfig);
+    connect(ui->lineCameraPath_5, &QLineEdit::textChanged,
+        this, &tunnel_inspection::saveConfig);
+    connect(ui->lineCameraPath_6, &QLineEdit::textChanged,
+        this, &tunnel_inspection::saveConfig);
+    connect(ui->lineSavePicturePath, &QLineEdit::textChanged,
+        this, &tunnel_inspection::saveConfig);
+    connect(ui->lineSaveResultPath, &QLineEdit::textChanged,
+        this, &tunnel_inspection::saveConfig);
 }
-//加载图像文件夹2
-void tunnel_inspection::on_load_pushbutton_2_clicked() {
-    //文件夹路径
-    auto  src_dirpath = QFileDialog::getExistingDirectory(
-        this, "choose src Directory",
-        "/");
-    ui.load_lineedit_2->setText(src_dirpath);
 
+void tunnel_inspection::saveConfig()
+{
+    qDebug() << "saveConfig! ";
+    AppConfig::CameraPath_1 = ui->lineCameraPath_1->text();
+    AppConfig::CameraPath_2 = ui->lineCameraPath_2->text();
+    AppConfig::CameraPath_3 = ui->lineCameraPath_3->text();
+    AppConfig::CameraPath_4 = ui->lineCameraPath_4->text();
+    AppConfig::CameraPath_5 = ui->lineCameraPath_5->text();
+    AppConfig::CameraPath_6 = ui->lineCameraPath_6->text();
+    AppConfig::SavePicturePath = ui->lineSavePicturePath->text();
+    AppConfig::SaveResultPath = ui->lineSaveResultPath->text();
+
+    AppConfig::writeConfig();
 }
 
 //保存原图路径按键
-void tunnel_inspection::on_path_pushbutton_clicked() {
+void tunnel_inspection::on_btnSavePicturePath_clicked() {
     //文件夹路径
     auto  src_dirpath = QFileDialog::getExistingDirectory(
         this, "choose src Directory",
         "/");
-    ui.path_lineedit->setText(src_dirpath);
+    ui->lineSavePicturePath->setText(src_dirpath);
     for (int i = 1; i <= CAMERANUMBER; ++i) {
         QString folderName = QString("%1").arg(i);
         QString fullPath = src_dirpath + "/" + folderName;
         bool result = QDir().mkpath(fullPath);
     }
-	if (ui.path_lineedit->text() != nullptr)
-		ui.save_radio_button->setEnabled(true);
+	if (ui->lineSavePicturePath->text() != nullptr)
+		ui->save_radio_button->setEnabled(true);
 
 }
 
 //保存结果路径
-void tunnel_inspection::on_result_path_pushbutton_clicked() {
+void tunnel_inspection::on_btnSaveResultPath_clicked() {
     //文件夹路径
     auto  src_dirpath = QFileDialog::getExistingDirectory(
         this, "choose src Directory",
         "/");
-    ui.result_path_lineedit->setText(src_dirpath);
-   /* for (int i = 1; i <= CAMERANUMBER; ++i) {
-        QString folderName = QString("%1").arg(i);
-        QString fullPath = src_dirpath + "/" + folderName;
-        bool result = QDir().mkpath(fullPath);
-    }*/
+    ui->lineSaveResultPath->setText(src_dirpath);
 
 }
 
@@ -404,12 +443,12 @@ void save_all(tunnel_inspection *ti, std::string files_name1, std::string  files
 //开始保存按键
 void tunnel_inspection::on_save_pushbutton_clicked() {
 
-    auto files_name1 = ui.load_lineedit->text().toStdString();
-    auto files_name2 = ui.load_lineedit_2->text().toStdString();
-    auto store_files_name = ui.path_lineedit->text().toStdString();
+    auto files_name1 = ui->lineCameraPath_1->text().toStdString();
+    auto files_name2 = ui->lineCameraPath_2->text().toStdString();
+    auto store_files_name = ui->lineSavePicturePath->text().toStdString();
 
 /*
-	ui.progress_bar->setMaximum(80);
+	ui->progress_bar->setMaximum(80);
 	std::thread ta(save_all, this, files_name1, files_name2, store_files_name);
 	ta.detach();
 	return;
@@ -427,12 +466,12 @@ void tunnel_inspection::on_save_pushbutton_clicked() {
         }
 
     }
-    ui.progress_bar->setMaximum(80);
+    ui->progress_bar->setMaximum(80);
 
 
     for (int i = 0; i < files_names.size(); i++) {
 
-        ui.progress_bar->setValue(i*10);
+        ui->progress_bar->setValue(i*10);
 
         std::ifstream is(files_names[i], std::ios::in | std::ios::binary);
         if (is) {
@@ -461,19 +500,7 @@ void tunnel_inspection::on_save_pushbutton_clicked() {
             is.close();
             delete[] buffer;
         }
-
-
-
-
-
     }
-
-
-  
-
-
-
-
 }
 //start按键进行裂纹检测和渗水掉块
 void tunnel_inspection::on_start_pushbutton_clicked() {
@@ -484,29 +511,29 @@ void tunnel_inspection::on_start_pushbutton_clicked() {
     // 从界面输入的路径编辑框获取路径，转换为std::string（GB2312编码）
 
     //两个读图的line
-    std::string files_name1 = code->fromUnicode(ui.load_lineedit->text()).data();
-    std::string files_name2 = code->fromUnicode(ui.load_lineedit_2->text()).data();
-    //std::string files_name2 = ui.load_lineedit_2->text().toStdString(); code->fromUnicode(ui.path_lineedit->text()).data();
+    std::string files_name1 = code->fromUnicode(ui->lineCameraPath_1->text()).data();
+    std::string files_name2 = code->fromUnicode(ui->lineCameraPath_2->text()).data();
+    //std::string files_name2 = ui->lineCameraPath_2->text().toStdString(); code->fromUnicode(ui->lineSavePicturePath->text()).data();
 
     //两个保存路径的line
-    std::string store_files_name = code->fromUnicode(ui.path_lineedit->text()).data();
-    std::string result_files_name = code->fromUnicode(ui.result_path_lineedit->text()).data();
+    std::string store_files_name = code->fromUnicode(ui->lineSavePicturePath->text()).data();
+    std::string result_files_name = code->fromUnicode(ui->lineSaveResultPath->text()).data();
 
     // 打开并检测每个摄像头数据是否正常，将正确打开的摄像头文件存入有效数组中
 	auto  maxbar_value = alg_thread_.set_data_name(files_name1, files_name2, store_files_name, result_files_name);//拼接摄像头的二进制文件名
     // 设置界面进度条的最大值，进度条范围 [0, maxbar_value]
-	ui.progress_bar->setMaximum(maxbar_value);
+	ui->progress_bar->setMaximum(maxbar_value);
 	
     // 准备存放所有摄像头数据文件名的容器
 	std::vector<std::string>files_names;
     // 根据摄像头编号，组合对应的文件路径
 	for (int i = 0; i < CAMERANUMBER; i++) {
-		if (i < 4) {
-            // 0~3号摄像头数据来自 files_name1 路径
+		if (i < 3) {
+            // 0~2号摄像头数据来自 files_name1 路径
 			files_names.push_back(files_name1 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
 		}
 		else {
-            // 4号及以上摄像头数据来自 files_name2 路径
+            // 3号及以上摄像头数据来自 files_name2 路径
 			files_names.push_back(files_name2 + "/DalsaCamera" + std::to_string(i + 1) + ".img");
 		}
 
@@ -521,24 +548,27 @@ void tunnel_inspection::on_start_pushbutton_clicked() {
                 if (camera_id_ == -1) {
                     camera_id_ = frame.camera_id; // 2. 如果camera_id_是-1（还没赋值），就设置为当前帧的相机ID
                 }
-                if (camera_id_ == frame.camera_id&&ui.save_radio_button->isChecked()) {
+                if (camera_id_ == frame.camera_id&&ui->save_radio_button->isChecked()) {
                     signals_bar(frame.frame_number + 2); // 3. 如果当前帧是选中的摄像头帧且保存选项被勾选，更新进度条
                 }
             },
             files_names[i],// 文件路径
             i);// 摄像头ID
         //开始裂纹检测
+        qDebug() << "开始裂纹检测";
 		file_datas_[i].start();
+        qDebug() << "裂纹检测结束";
         // 设置文件存储路径、结果路径及是否保存文件的标志
 		file_datas_[i].set_params(store_files_name+"/"+std::to_string(i+1)+"/",// 存储路径（分摄像头子文件夹）
             result_files_name,// 结果保存路径
-            ui.save_radio_button->isChecked()&&ui.path_lineedit->text()!=nullptr);// 是否保存标志
+            ui->save_radio_button->isChecked()&&ui->lineSavePicturePath->text()!=nullptr);// 是否保存标志
 		
 	}
 
 	//开始渗水和掉块检测
+    qDebug() << "开始渗水掉块检测";
 	alg_thread_.start();
-
+    qDebug() << "渗水掉块检测结束，开始生成报表";
     // 获取当前系统时间，用于生成带日期的文件名
     auto tNow = std::chrono::system_clock::now();
     auto tmNow = std::chrono::system_clock::to_time_t(tNow);
@@ -549,6 +579,8 @@ void tunnel_inspection::on_start_pushbutton_clicked() {
     std::string monthday = oss.str() + "_";
     // 拼接Word文件名，存放检测结果
     std::string wordname = result_files_name + monthday + "result.doc";
+    
+    qDebug() << "拼接报表名称: " << QString::fromStdString(wordname);
     if (!word_.createWord(QString::fromStdString(wordname))) {
         QString error = QObject::tr("导出失败,") + word_.getStrErrorInfo();
         qDebug() << error;
@@ -558,10 +590,63 @@ void tunnel_inspection::on_start_pushbutton_clicked() {
     create_word_title(files_name1);
 
 }
-void tunnel_inspection::on_picture_pushbutton_clicked() {
 
-}
 void tunnel_inspection::update_bar() {
 
+
+}
+
+//加载相机1
+void tunnel_inspection::on_btnCameraPath_1_clicked() {
+    //文件夹路径
+    auto  src_dirpath = QFileDialog::getExistingDirectory(
+        this, "choose src Directory",
+        "/");
+    ui->lineCameraPath_1->setText(src_dirpath);
+
+}
+//加载相机2
+void tunnel_inspection::on_btnCameraPath_2_clicked() {
+    //文件夹路径
+    auto  src_dirpath = QFileDialog::getExistingDirectory(
+        this, "choose src Directory",
+        "/");
+    ui->lineCameraPath_2->setText(src_dirpath);
+
+}
+//加载相机3
+void tunnel_inspection::on_btnCameraPath_3_clicked() {
+    //文件夹路径
+    auto  src_dirpath = QFileDialog::getExistingDirectory(
+        this, "choose src Directory",
+        "/");
+    ui->lineCameraPath_3->setText(src_dirpath);
+
+}
+//加载相机4
+void tunnel_inspection::on_btnCameraPath_4_clicked() {
+    //文件夹路径
+    auto  src_dirpath = QFileDialog::getExistingDirectory(
+        this, "choose src Directory",
+        "/");
+    ui->lineCameraPath_4->setText(src_dirpath);
+
+}
+//加载相机5
+void tunnel_inspection::on_btnCameraPath_5_clicked() {
+    //文件夹路径
+    auto  src_dirpath = QFileDialog::getExistingDirectory(
+        this, "choose src Directory",
+        "/");
+    ui->lineCameraPath_5->setText(src_dirpath);
+
+}
+//加载相机6
+void tunnel_inspection::on_btnCameraPath_6_clicked() {
+    //文件夹路径
+    auto  src_dirpath = QFileDialog::getExistingDirectory(
+        this, "choose src Directory",
+        "/");
+    ui->lineCameraPath_6->setText(src_dirpath);
 
 }
