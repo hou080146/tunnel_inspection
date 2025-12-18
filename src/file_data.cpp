@@ -144,7 +144,7 @@ void file_data::run() {
 
                 duration_capture2 = clock::now() - last;
                 auto timeuse = std::chrono::duration_cast<std::chrono::milliseconds>(duration_capture2).count();
-                //qDebug() << "i=" << id_ << "==get_data==" << timeuse;
+
                 last = clock::now();
 
 

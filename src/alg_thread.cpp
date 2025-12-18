@@ -2,6 +2,7 @@
 #include<QDateTime>
 #include<QDebug>
 #include"img.h"
+#include "AppConfig.h"
 
 #pragma execution_character_set("utf-8")
 
@@ -89,11 +90,11 @@ void alg_thread::run()
     // 存放采集的原始图像帧，后续处理用
 	std::vector<cv::Mat> source_frames;
     // 每个摄像头拍摄角度起始点（度数）
-    float angles_start[6] = { 36.21, 70.0, 103.0, 137.0, 171.0, 205.0 };//每个相机起始拍摄角度
-    float unit_angle = 51.34 / 8192.0;// 每个像素对应的角度值
+    float angles_start[6] = { 55.65, 67.965, 118.965, 169.765, 220.765, 272.35 };//每个相机起始拍摄角度
+    float unit_angle[6] = { 0.007812, 0.004349, 0.004349, 0.004349, 0.004349, 0.00781 };// 每个像素对应的角度值32.0/4096.0;71.27.0/16384.0
 
     // 里程相关起始参数
-    float mileage_start = 30.9975;//里程起始点
+    float mileage_start = AppConfig::Mileage;//里程起始点
     //float unit_mileage = 8192.0*0.5/1000.0;//每张图片里程长度//南昌地铁0.25\0.314mm每触发一次
     int mileage_direction = -1;// 里程增加方向，-1表示递减
 
@@ -256,7 +257,7 @@ void alg_thread::run()
                    area = area2 * acc_x * acc_y / 1000000.0f;
                    ret.area = area;
                    // 计算角度，结合摄像头起始角度和像素位置
-                   ret.angle = angles_start[frames[i].camera_id] + unit_angle * float(output[0].box.x);
+                   ret.angle = angles_start[frames[i].camera_id] + unit_angle[frames[i].camera_id] * float(output[0].box.x);
                    
                    // 【修改】计算里程
                    // 原代码: frames[i].frame_number*unit_mileage + float(output[0].box.y)*0.25/1000
@@ -311,7 +312,7 @@ void alg_thread::run()
                if (crack_ret.length > 200)// 长度阈值（单位不太确定，可能mm）
                    iswrite_carck = true;
                crack_ret.width = width * acc_x;             // 像素宽度 * 精度 => 毫米
-               crack_ret.angle = angles_start[frames[i].camera_id] + unit_angle * float(frames[i].results[0].box.x);//起始角度+每个像素所占的角度*裂纹在图像上的x坐标
+               crack_ret.angle = angles_start[frames[i].camera_id] + unit_angle[frames[i].camera_id] * float(frames[i].results[0].box.x);//起始角度+每个像素所占的角度*裂纹在图像上的x坐标
                // 【修正】里程计算使用 Y轴精度
                //float frame_len_m = 8192.0f * acc_y / 1000.0f;
                float defect_y_m = float(frames[i].results[0].box.y) * acc_y / 1000.0f;
@@ -453,10 +454,6 @@ void alg_thread::push_frame(const file_data::frame& frame)
 	if (process_frames_.size() == effectives_.size()) {
 
 		condition_.notify_one();// 通知等待该条件的线程（例如算法处理线程）可以开始工作了
-        //qDebug() << "frame_number_ ==" << frame_number_<<"=size= "<<process_frames_.size();
-        //if (process_frames_.size() > 0)
-        //    qDebug() << "process_frames_ ==" << process_frames _[0].frame_number;
-		//frame_number_++;
 	}
      duration_capture1 = clock::now() - last;// 计算push_frame函数执行的耗时（毫秒），便于性能监控
     auto timeuse = std::chrono::duration_cast<std::chrono::milliseconds>(duration_capture1).count();
@@ -473,8 +470,6 @@ unsigned int alg_thread::set_data_name(std::vector<QString> &files_name, std::st
 	for (int i = 0; i < CAMERANUMBER; i++) {
 		// 文件名逻辑：0-3在文件夹1，4-5在文件夹2
         QString fname;
-        //if (i < 3) fname = files_name1_ + "/DalsaCamera" + std::to_string(i + 1) + ".img";
-        //else       fname = files_name2_ + "/DalsaCamera" + std::to_string(i + 1) + ".img";
         fname = files_name[i] + "/Recv.img";
         ifstreams[i].open(fname.toStdString(), std::ios::in | std::ios::binary);
 
