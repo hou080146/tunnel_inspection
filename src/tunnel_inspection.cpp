@@ -324,6 +324,7 @@ void tunnel_inspection::init()
     ui->lineSavePicturePath->setText(AppConfig::SavePicturePath);
     ui->lineSaveResultPath->setText(AppConfig::SaveResultPath);
     ui->line_mileage->setText(QString::number(AppConfig::Mileage));
+    //ui->checkBox_miledown->setChecked(AppConfig::MileageDown);
     m_mileage = AppConfig::Mileage;
 
     //保存原图cbx控件
@@ -358,13 +359,25 @@ void tunnel_inspection::init()
         this, &tunnel_inspection::saveConfig);
     connect(ui->line_mileage, &QLineEdit::textChanged,
         this, &tunnel_inspection::saveConfig);
+    connect(ui->checkBox_miledown, &QCheckBox::toggled,
+        this, &tunnel_inspection::mileageDown);
 
     //链接进度条事件
     connect(this, &tunnel_inspection::signals_bar, ui->progress_bar, [=](int value) {
         ui->progress_bar->setValue(value); // 更新进度条的值  
         });
 }
-
+void tunnel_inspection::mileageDown(bool checked)
+{
+    if (checked == true)
+    {
+        AppConfig::MileageDown = -1;
+    }
+    else
+    {
+        AppConfig::MileageDown = 1;
+    }
+}
 void tunnel_inspection::saveConfig()
 {
     AppConfig::CameraPath_1 = ui->lineCameraPath_1->text();

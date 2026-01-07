@@ -21,6 +21,7 @@ public:
     static QString SavePicturePath;
     static QString SaveResultPath;
     static double Mileage;
+    static int MileageDown;
 
     static void readConfig();
     static void writeConfig();

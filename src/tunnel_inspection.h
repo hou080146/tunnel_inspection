@@ -33,6 +33,7 @@ public slots:
     void on_start_pushbutton_clicked();
     void update_bar();
     void saveConfig();
+    void mileageDown(bool checked);
 signals:
     void signals_bar(int value);
 private:

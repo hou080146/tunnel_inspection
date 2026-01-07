@@ -6,6 +6,7 @@
 
 #pragma execution_character_set("utf-8")
 
+//调用函数读取的数据没有使用
 bool alg_thread::readRefPointFromFile(const std::string& filename, RefPoint& refPoint) {
     std::ifstream file(filename, std::ios::binary);
     if (!file) {
@@ -67,9 +68,7 @@ bool alg_thread::start()
 void alg_thread::run()
 {
     // 角度和位置修正数组，调整图像拼接时的位置偏移
-    int changeh[6] = { 0,0,0,0,0,0 };
-   // 
-    //int changew[8] = { 0,1559,1561,1663,1188,1682,1643,1548 };
+    //int changeh[6] = { 0,0,0,0,0,0 };
     // 图像水平方向修正偏移，单位为像素
     int changew[6] = { 0,0,0,0,0,0 };
     // 缺陷名称对应索引
@@ -81,8 +80,12 @@ void alg_thread::run()
 
     // 【新增 2】Y轴精度 (原生扫描行精度, mm/pixel) - 这是一个关键的新增数组
     // Y轴高度始终是8192，没有缩放，所以必须用原生精度
-    float y_pixel_accuracy[6] = { 0.28f, 0.21f, 0.245f, 0.245f, 0.21f, 0.28f };
-
+    //float y_pixel_accuracy[6] = { 0.28f, 0.21f, 0.245f, 0.245f, 0.21f, 0.28f };
+    float global_y_acc = 0.21f; 
+    float y_pixel_accuracy[6];
+    for (int k = 0; k < 6; k++) {
+        y_pixel_accuracy[k] = global_y_acc;
+    }
     std::vector<std::string> defect = {
         "渗水","渗水","掉块","里程"//,"shield"裂纹、渗水、掉块
     };
@@ -96,10 +99,10 @@ void alg_thread::run()
     // 里程相关起始参数
     float mileage_start = AppConfig::Mileage;//里程起始点
     //float unit_mileage = 8192.0*0.5/1000.0;//每张图片里程长度//南昌地铁0.25\0.314mm每触发一次
-    int mileage_direction = -1;// 里程增加方向，-1表示递减
-
+    int mileage_direction = AppConfig::MileageDown;// 里程增加方向，-1表示递减
     
-    // 读取参考点文件（里程信息、线名等）
+    
+    // 读取参考点文件（里程信息、线名等）读取的没用
     RefPoint refPoint;
     std::string filename = files_name1_+"/Milepost0101.mp"; // 参考点文件路径
     
@@ -136,7 +139,7 @@ void alg_thread::run()
     clahe->setTilesGridSize(cv::Size(8, 8));  // 设置网格大小
     
     // 写入CSV表头
-    of << "缺陷名" << "," << "角度" << "," << "位置" << "," << "面积" << "," << "长度" << "," << "宽度" << "," << "里程" << "," << "置信度" << "," << "相机号" << "," << "执行时间" << "," << "图像路径" << "," << std::endl;
+    of << "缺陷名" << "," << "角度" << "," << "帧号" << "," << "面积" << "," << "长度" << "," << "宽度" << "," << "里程（km)" << "," << "置信度" << "," << "相机号" << "," << "执行时间" << "," << "图像路径" << "," << std::endl;
     
     // 主循环，线程运行期间持续处理数据
 	while (running_)
@@ -183,7 +186,7 @@ void alg_thread::run()
 
 
 
-        // 遍历同一时刻8个摄像头帧进行检测和处理
+        // 遍历同一时刻6个摄像头帧进行检测和处理
 		for (int i = 0; i < frames.size(); i++) {
             result ret,crack_ret;// 存储检测结果的结构体
 
@@ -218,9 +221,9 @@ void alg_thread::run()
             // 如果是第0号摄像头，额外处理里程标记检测
             // 如果是第0号摄像头（即1号相机，4k），额外处理里程标记检测
             if (frames[i].camera_id == 0) {
-                // ID=0 的 acc_y 已经是 0.28 了，可以直接用
+                
                 for (auto mileage : output) {
-                    if (mileage.id == 3 && mileage.confidence > 0.9 && mileage.box.width > 10 && mileage.box.height > 10 && frames[i].frame_number != 249) {
+                    if (mileage.id == 3 && mileage.confidence > 0.9 && mileage.box.width > 10 && mileage.box.height > 10 && frames[i].frame_number != 249) {//frames[i].frame_number != 249为什么？
 
                         // 【修正】使用 frame_len_m 和 acc_y 计算
                         float y_offset_m = float(output[0].box.y) * acc_y / 1000.0f;
@@ -231,7 +234,7 @@ void alg_thread::run()
                         meters_mark = true;
                         qDebug() << "mileage=" << frames[i].frame_number << ":real_mileage_mark=" << real_mileage_mark;
 
-                        cv::imwrite(result_files_name_ + std::to_string(frames[i].camera_id + 1) + "_" + std::to_string(frames[i].frame_number) + "_" + std::to_string(int(real_mileage_mark)) + "_mileage" + ".jpg", timg(mileage.box));
+                        cv::imwrite(result_files_name_ + std::to_string(frames[i].camera_id) + "_" + std::to_string(frames[i].frame_number) + "_" + std::to_string(int(real_mileage_mark)) + "_mileage" + ".jpg", timg(mileage.box));
                         break;
                     }
                 }
@@ -275,7 +278,7 @@ void alg_thread::run()
                    ret.confidence = output[k].confidence;
                    ret.bar_value = frames[i].frame_number;
                    // 生成图片保存路径
-                   ret.img_path =  std::to_string(frames[i].camera_id + 1) + monthday + std::to_string(frames[i].frame_number) + "_result" + ".jpg";
+                   ret.img_path = result_files_name_ + std::to_string(frames[i].camera_id) + monthday + std::to_string(frames[i].frame_number) + "_result" + ".jpg";
                    // 写入CSV
                    of << ret.injury_image_name << "," << ret.angle << "," << ret.bar_value << "," << ret.area << "," << ret.length << "," << ret.width << "," << ret.mileage << "," << ret.confidence << "," << ret.order << "," << ret.proc_time << "," << "\"=HYPERLINK(\"\"" << ret.img_path << "\"\", \"\"" << ret.img_path << "\"\")\"" << "," << std::endl;
 
@@ -322,7 +325,7 @@ void alg_thread::run()
                crack_ret.order = frames[i].camera_id;
                crack_ret.confidence = frames[i].results[0].confidence;
                crack_ret.bar_value = frames[i].frame_number;
-               crack_ret.img_path = std::to_string(frames[i].camera_id + 1) + monthday + std::to_string(frames[i].frame_number) + "_result" + ".jpg";
+               crack_ret.img_path = result_files_name_ + std::to_string(frames[i].camera_id) + monthday + std::to_string(frames[i].frame_number) + "_result" + ".jpg";
            
 
            }
@@ -333,7 +336,7 @@ void alg_thread::run()
                DrawPred_seg(timg, frames[i].results, yolov_detect_._className, color);
                // 保存绘制结果图，质量30（较高压缩）
                std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 30 };
-               cv::imwrite(result_files_name_ + std::to_string(frames[i].camera_id + 1) + monthday + std::to_string(frames[i].frame_number) + "_result" + ".jpg", timg, params);
+               cv::imwrite(result_files_name_ + std::to_string(frames[i].camera_id) + monthday + std::to_string(frames[i].frame_number) + "_result" + ".jpg", timg, params);
                // cv::imwrite(result_files_name_ + std::to_string(frames[i].camera_id + 1) + monthday + std::to_string(frames[i].frame_number) + ".jpg", frames[i].data);
 
            }//&& max_confidence > 0.6)
@@ -360,7 +363,7 @@ void alg_thread::run()
                
                std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 30 };
                // 保存增强后的结果图
-               cv::imwrite(result_files_name_ + std::to_string(frames[i].camera_id + 1) + monthday + std::to_string(frames[i].frame_number) + "_result" + ".jpg", equalizedImage, params);
+               cv::imwrite(result_files_name_ + std::to_string(frames[i].camera_id) + monthday + std::to_string(frames[i].frame_number) + "_result" + ".jpg", equalizedImage, params);
                //cv::imwrite(result_files_name_ + std::to_string(frames[i].camera_id + 1) + monthday + std::to_string(frames[i].frame_number) + ".jpg", frames[i].data);
            }
            // 拼接合成大图，利用changew数组修正水平方向偏移
@@ -384,7 +387,7 @@ void alg_thread::run()
            }
            
 		}
-        // 裁剪合成图有效部分并调整大小，方便后续显示//// 裁剪合成图的有效部分，去除多余宽度（根据changew[7]偏移），高度保持不变
+        // 裁剪合成图有效部分并调整大小，方便后续显示
         cv::Mat mergedImage2(mergedImage, cv::Rect(0, 0, 6 * IMGWIDTH - changew[5], IMGHEIGHT));
         
         
@@ -401,7 +404,6 @@ void alg_thread::run()
         // 调用回调函数，传递处理结果和拼接图
 		alg_finished_callback_(ret, mergedImage2);// 调用预先绑定的回调函数，将处理结果ret和裁剪缩放后的合成图mergedImage2传递出去
 		
-        //cv::resize(timg, timg, cv::Size(1024, 1024));
 	}
 
     of.close();
@@ -468,7 +470,6 @@ unsigned int alg_thread::set_data_name(std::vector<QString> &files_name, std::st
     // 遍历所有摄像头索引
     // 【修改】循环次数改为 CAMERANUMBER (6)
 	for (int i = 0; i < CAMERANUMBER; i++) {
-		// 文件名逻辑：0-3在文件夹1，4-5在文件夹2
         QString fname;
         fname = files_name[i] + "/Recv.img";
         ifstreams[i].open(fname.toStdString(), std::ios::in | std::ios::binary);
