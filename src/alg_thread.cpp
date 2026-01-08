@@ -81,7 +81,11 @@ void alg_thread::run()
     // 【新增 2】Y轴精度 (原生扫描行精度, mm/pixel) - 这是一个关键的新增数组
     // Y轴高度始终是8192，没有缩放，所以必须用原生精度
     //float y_pixel_accuracy[6] = { 0.28f, 0.21f, 0.245f, 0.245f, 0.21f, 0.28f };
-    float global_y_acc = 0.21f; 
+    float global_y_acc = 0.21f;
+    if (AppConfig::Y_ACC > 0)
+    {
+        global_y_acc = AppConfig::Y_ACC;
+    }
     float y_pixel_accuracy[6];
     for (int k = 0; k < 6; k++) {
         y_pixel_accuracy[k] = global_y_acc;

@@ -360,25 +360,66 @@ border-radius:0px;</string>
           </item>
           <item row="2" column="2">
            <widget class="QWidget" name="widget_6" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_13">
+            <layout class="QHBoxLayout" name="horizontalLayout_14">
+             <property name="spacing">
+              <number>1</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
              <property name="topMargin">
-              <number>3</number>
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
              </property>
              <property name="bottomMargin">
-              <number>3</number>
+              <number>0</number>
              </property>
              <item>
               <widget class="QWidget" name="widget" native="true">
                <layout class="QHBoxLayout" name="horizontalLayout_12">
+                <property name="rightMargin">
+                 <number>3</number>
+                </property>
                 <item>
                  <widget class="QLabel" name="label">
                   <property name="text">
-                   <string>初始里程</string>
+                   <string>初始里程(km)</string>
                   </property>
                  </widget>
                 </item>
                 <item>
                  <widget class="QLineEdit" name="line_mileage">
+                  <property name="maximumSize">
+                   <size>
+                    <width>60</width>
+                    <height>16777215</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QWidget" name="widget_7" native="true">
+               <layout class="QHBoxLayout" name="horizontalLayout_13">
+                <property name="leftMargin">
+                 <number>3</number>
+                </property>
+                <property name="rightMargin">
+                 <number>3</number>
+                </property>
+                <item>
+                 <widget class="QLabel" name="label_2">
+                  <property name="text">
+                   <string>像素里程(mm)</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="lineEdit_Y_ACC">
                   <property name="maximumSize">
                    <size>
                     <width>60</width>
@@ -400,20 +441,10 @@ border-radius:0px;</string>
                </property>
               </widget>
              </item>
-             <item>
-              <spacer name="horizontalSpacer">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>118</width>
-                 <height>20</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
             </layout>
+            <zorder>widget</zorder>
+            <zorder>checkBox_miledown</zorder>
+            <zorder>widget_7</zorder>
            </widget>
           </item>
          </layout>

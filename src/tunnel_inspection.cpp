@@ -323,7 +323,8 @@ void tunnel_inspection::init()
     ui->lineCameraPath_6->setText(AppConfig::CameraPath_6);
     ui->lineSavePicturePath->setText(AppConfig::SavePicturePath);
     ui->lineSaveResultPath->setText(AppConfig::SaveResultPath);
-    ui->line_mileage->setText(QString::number(AppConfig::Mileage));
+    ui->line_mileage->setText(QString::number(AppConfig::Mileage, 'f', 5));
+    ui->lineEdit_Y_ACC->setText(QString::number(AppConfig::Y_ACC, 'f', 3));
     //ui->checkBox_miledown->setChecked(AppConfig::MileageDown);
     m_mileage = AppConfig::Mileage;
 
@@ -361,6 +362,8 @@ void tunnel_inspection::init()
         this, &tunnel_inspection::saveConfig);
     connect(ui->checkBox_miledown, &QCheckBox::toggled,
         this, &tunnel_inspection::mileageDown);
+    connect(ui->lineEdit_Y_ACC, &QLineEdit::textChanged,
+        this, &tunnel_inspection::saveConfig);
 
     //链接进度条事件
     connect(this, &tunnel_inspection::signals_bar, ui->progress_bar, [=](int value) {
@@ -389,6 +392,7 @@ void tunnel_inspection::saveConfig()
     AppConfig::SavePicturePath = ui->lineSavePicturePath->text();
     AppConfig::SaveResultPath = ui->lineSaveResultPath->text();
     AppConfig::Mileage = ui->line_mileage->text().toDouble();
+    AppConfig::Y_ACC = ui->lineEdit_Y_ACC->text().toFloat();
 
     AppConfig::writeConfig();
 }

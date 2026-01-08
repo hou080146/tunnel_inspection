@@ -13,6 +13,7 @@ QString AppConfig::CameraPath_6 = "G:";
 QString AppConfig::SavePicturePath = "D:Vedio";
 QString AppConfig::SaveResultPath = "D:Vedio";
 double AppConfig::Mileage = 0.0;
+float AppConfig::Y_ACC = 0.21f;
 int AppConfig::MileageDown = 1;
 bool AppConfig::WriteFlag = false;
 bool AppConfig::Style = false;
@@ -34,6 +35,7 @@ void AppConfig::readConfig()
     AppConfig::SavePicturePath = set.value("SavePicturePath").toString();
     AppConfig::SaveResultPath = set.value("SaveResultPath").toString();
     AppConfig::Mileage = set.value("Mileage").toDouble();
+    AppConfig::Y_ACC = set.value("Y_ACC").toFloat();
     //AppConfig::MileageDown = set.value("Mileage").toInt();
     set.endGroup();
 
@@ -61,6 +63,7 @@ void AppConfig::writeConfig()
     set.setValue("SavePicturePath", AppConfig::SavePicturePath);
     set.setValue("SaveResultPath", AppConfig::SaveResultPath);
     set.setValue("Mileage", AppConfig::Mileage);
+    set.setValue("Y_ACC", AppConfig::Y_ACC);
     //set.setValue("MileageDown", AppConfig::MileageDown);
     set.endGroup();
 }
