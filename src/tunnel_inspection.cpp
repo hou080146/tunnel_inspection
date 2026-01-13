@@ -392,7 +392,7 @@ void tunnel_inspection::saveConfig()
     AppConfig::SavePicturePath = ui->lineSavePicturePath->text();
     AppConfig::SaveResultPath = ui->lineSaveResultPath->text();
     AppConfig::Mileage = ui->line_mileage->text().toDouble();
-    AppConfig::Y_ACC = ui->lineEdit_Y_ACC->text().toFloat();
+    AppConfig::Y_ACC = ui->lineEdit_Y_ACC->text().toDouble();
 
     AppConfig::writeConfig();
 }

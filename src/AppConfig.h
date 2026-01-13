@@ -22,7 +22,7 @@ public:
     static QString SaveResultPath;
     static double Mileage;
     static int MileageDown;
-    static float Y_ACC;
+    static double Y_ACC;
 
     static void readConfig();
     static void writeConfig();
